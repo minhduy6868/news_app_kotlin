@@ -1,4 +1,5 @@
 package com.gk.news_pro.page.screen.explore_sceen
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gk.news_pro.data.model.News
@@ -14,11 +15,17 @@ class ExploreViewModel(
     private val _newsState = MutableStateFlow<ExploreUiState>(ExploreUiState.Loading)
     val newsState: StateFlow<ExploreUiState> = _newsState
 
+    private val _trendingNews = MutableStateFlow<List<News>>(emptyList())
+    val trendingNews: StateFlow<List<News>> = _trendingNews
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
     private val _selectedCategory = MutableStateFlow("general")
     val selectedCategory: StateFlow<String> = _selectedCategory
+
+    private val _bookmarkedNews = MutableStateFlow<List<News>>(emptyList())
+    val bookmarkedNews: StateFlow<List<News>> = _bookmarkedNews
 
     val categories = listOf(
         "general", "business", "entertainment", "health",
@@ -27,6 +34,7 @@ class ExploreViewModel(
 
     init {
         fetchGeneralNews()
+        fetchTrendingNews()
     }
 
     fun fetchGeneralNews() {
@@ -35,11 +43,24 @@ class ExploreViewModel(
             try {
                 val response = repository.getNews(
                     apiKey = "pub_7827211e80c068cf7ded249ee01e644d60afc",
-                    category = "general"
                 )
                 _newsState.value = ExploreUiState.Success(response.results ?: emptyList())
             } catch (e: Exception) {
                 _newsState.value = ExploreUiState.Error(e.message ?: "Failed to load news")
+            }
+        }
+    }
+
+    fun fetchTrendingNews() {
+        viewModelScope.launch {
+            try {
+                // Fetch trending news with different parameters (e.g., popular/latest)
+                val response = repository.getNews(
+                    apiKey = "pub_7827211e80c068cf7ded249ee01e644d60afc",
+                )
+                _trendingNews.value = response.results?.take(5) ?: emptyList() // Limit to 5 trending items
+            } catch (e: Exception) {
+                _trendingNews.value = emptyList()
             }
         }
     }
@@ -89,6 +110,18 @@ class ExploreViewModel(
             searchNews(searchQuery.value)
         } else {
             fetchGeneralNews()
+        }
+    }
+
+    fun toggleBookmark(news: News, isBookmarked: Boolean) {
+        viewModelScope.launch {
+            val currentBookmarks = _bookmarkedNews.value.toMutableList()
+            if (isBookmarked) {
+                currentBookmarks.add(news)
+            } else {
+                currentBookmarks.remove(news)
+            }
+            _bookmarkedNews.value = currentBookmarks
         }
     }
 }

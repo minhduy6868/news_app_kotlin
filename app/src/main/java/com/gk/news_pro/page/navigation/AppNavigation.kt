@@ -1,7 +1,9 @@
 package com.gk.news_pro.page.navigation
 
 import android.util.Log
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
@@ -11,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -46,17 +49,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 fun AppNavigation() {
     val navController = rememberNavController()
     val items = listOf(Screen.Home, Screen.Explore, Screen.Favorite, Screen.Account)
-
-    // Khởi tạo NewsRepository
     val newsRepository = NewsRepository()
-
-    // Khởi tạo GeminiRepository
-    val geminiRepository = GeminiRepository() // Replace with actual instantiation if needed
-
-    // Khởi tạo ViewModel ở scope của NavHost để chia sẻ giữa các màn hình
-    val viewModel: HomeViewModel = viewModel(
-        factory = ViewModelFactory(newsRepository)
-    )
+    val geminiRepository = GeminiRepository()
+    val viewModel: HomeViewModel = viewModel(factory = ViewModelFactory(newsRepository))
 
     Scaffold(
         bottomBar = {
@@ -64,21 +59,16 @@ fun AppNavigation() {
             val currentRoute = navBackStackEntry?.destination?.route?.substringBefore("/{")
 
             if (currentRoute != Screen.NewsDetail.route.substringBefore("/{")) {
-                NavigationBar {
-                    items.forEach { screen ->
-                        NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
-                            selected = currentRoute == screen.route,
-                            onClick = {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.startDestinationId)
-                                    launchSingleTop = true
-                                }
-                            }
-                        )
+                ModernBottomBar(
+                    items = items,
+                    currentRoute = currentRoute,
+                    onItemClick = { screen ->
+                        navController.navigate(screen.route) {
+                            popUpTo(navController.graph.startDestinationId)
+                            launchSingleTop = true
+                        }
                     }
-                }
+                )
             }
         }
     ) { innerPadding ->
@@ -89,7 +79,7 @@ fun AppNavigation() {
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
-                    viewModel = viewModel, // Sử dụng ViewModel đã khởi tạo
+                    viewModel = viewModel,
                     onNewsClick = { news ->
                         Log.d("AppNavigation", "Navigating to news_detail with articleId: ${news.article_id}")
                         navController.navigate(Screen.NewsDetail.createRoute(news.article_id))
@@ -110,21 +100,80 @@ fun AppNavigation() {
                     NewsDetailScreen(
                         navController = navController,
                         news = news,
-                        geminiRepository = geminiRepository // Pass GeminiRepository
+                        geminiRepository = geminiRepository
                     )
                 } else {
                     Log.e("NewsDetailScreen", "No news found for articleId: $articleId")
-                    // Fallback UI or navigation
                     Text(
-                        text = "Bài báo không tồn tại",
+                        text = "Article not found",
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     LaunchedEffect(Unit) {
-                        navController.popBackStack() // Navigate back if news not found
+                        navController.popBackStack()
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ModernBottomBar(
+    items: List<Screen>,
+    currentRoute: String?,
+    onItemClick: (Screen) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NavigationBar(
+        modifier = modifier.height(64.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 4.dp
+    ) {
+        items.forEach { screen ->
+            val selected = currentRoute == screen.route
+            NavigationBarItem(
+                selected = selected,
+                onClick = { onItemClick(screen) },
+                icon = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = screen.icon,
+                            contentDescription = screen.title,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        if (selected) {
+                            Box(
+                                modifier = Modifier
+                                    .width(24.dp)
+                                    .height(3.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(50)
+                                    )
+                            )
+                        }
+                    }
+                },
+                label = {
+                    Text(
+                        text = screen.title,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1
+                    )
+                },
+                alwaysShowLabel = true,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    indicatorColor = MaterialTheme.colorScheme.surface
+                )
+            )
         }
     }
 }

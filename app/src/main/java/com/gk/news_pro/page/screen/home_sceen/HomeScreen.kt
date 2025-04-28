@@ -1,17 +1,17 @@
 package com.gk.news_pro.page.screen.home_screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Warning
@@ -19,25 +19,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import com.gk.news_pro.R
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.NewsRepository
 import com.gk.news_pro.page.components.NewsCard
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
-import com.gk.news_pro.ui.theme.*
-import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -68,15 +60,28 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             HomeAppBar()
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.background,
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
+                        )
+                    )
+                )
                 .padding(innerPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Greeting Section
+            item {
+                GreetingSection()
+            }
+
             // Breaking News Banner
             if (latestNews.value.isNotEmpty()) {
                 item {
@@ -108,7 +113,10 @@ fun HomeScreen(
                                 .height(200.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 3.dp
+                            )
                         }
                     }
                 }
@@ -120,7 +128,17 @@ fun HomeScreen(
                         }
                     } else {
                         items(latestNews.value) { news ->
-                            NewsListItem(news = news, onNewsClick = onNewsClick)
+                            NewsCard(
+                                news = news,
+                                onClick = { onNewsClick(news) },
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                accentColor = MaterialTheme.colorScheme.primary,
+                                cardHeight = 200.dp,
+                                shadowElevation = 4.dp,
+                                showBookmarkButton = false,
+                                showCategoryBadge = true,
+                                isTrending = trendingNews.value.contains(news)
+                            )
                         }
                     }
                 }
@@ -136,9 +154,70 @@ fun HomeScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun GreetingSection() {
+    val greeting = getGreetingMessage()
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .shadow(4.dp, RoundedCornerShape(16.dp)),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = greeting,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Stay updated with the latest news!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "Greeting Icon",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun getGreetingMessage(): String {
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    return when (hour) {
+        in 0..11 -> "Good Morning!"
+        in 12..16 -> "Good Afternoon!"
+        in 17..23 -> "Good Evening!"
+        else -> "Hello!"
     }
 }
 
@@ -149,87 +228,36 @@ private fun HomeAppBar() {
         title = {
             Text(
                 text = "NewsPro",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 28.sp
                 )
             )
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onBackground
-        )
+        ),
+        modifier = Modifier.shadow(4.dp)
     )
 }
 
 @Composable
 private fun BreakingNewsBanner(news: News, onNewsClick: (News) -> Unit) {
-    Card(
+    NewsCard(
+        news = news,
+        onClick = { onNewsClick(news) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .height(200.dp),
-        shape = RoundedCornerShape(16.dp),
-        onClick = { onNewsClick(news) }
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
-                model = news.image_url ?: R.drawable.ic_launcher_foreground,
-                contentDescription = news.title,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f)
-                            ),
-                            startY = 300f
-                        )
-                    )
-            )
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "BREAKING NEWS",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = news.title ?: "",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = formatDate(news.pubDate ?: ""),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
-                )
-            }
-        }
-    }
+            .padding(horizontal = 16.dp),
+        accentColor = MaterialTheme.colorScheme.primary,
+        cardHeight = 220.dp,
+        shadowElevation = 6.dp,
+        showBookmarkButton = false,
+        showCategoryBadge = true,
+        isTrending = false
+    )
 }
 
 @Composable
@@ -241,119 +269,17 @@ private fun TrendingNewsSection(newsList: List<News>, onNewsClick: (News) -> Uni
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         items(newsList) { news ->
-            TrendingNewsItem(news = news, onClick = { onNewsClick(news) })
-        }
-    }
-}
-
-@Composable
-private fun TrendingNewsItem(news: News, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .width(280.dp)
-            .height(120.dp),
-        shape = RoundedCornerShape(16.dp),
-        onClick = onClick
-    ) {
-        Row(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .width(100.dp)
-                    .fillMaxHeight()
-            ) {
-                AsyncImage(
-                    model = news.image_url ?: R.drawable.ic_launcher_foreground,
-                    contentDescription = news.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = news.title ?: "",
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Trending",
-                        modifier = Modifier.size(16.dp),
-                        tint = Color(0xFFFFD700)
-                    )
-                    Text(
-                        text = "Trending",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NewsListItem(news: News, onNewsClick: (News) -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        onClick = { onNewsClick(news) }
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-            ) {
-                AsyncImage(
-                    model = news.image_url ?: R.drawable.ic_launcher_foreground,
-                    contentDescription = news.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = news.title ?: "",
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = news.description ?: "",
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = formatDate(news.pubDate ?: ""),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
-            }
+            NewsCard(
+                news = news,
+                onClick = { onNewsClick(news) },
+                modifier = Modifier.width(300.dp),
+                accentColor = MaterialTheme.colorScheme.primary,
+                cardHeight = 180.dp,
+                shadowElevation = 4.dp,
+                showBookmarkButton = false,
+                showCategoryBadge = true,
+                isTrending = true
+            )
         }
     }
 }
@@ -362,8 +288,13 @@ private fun NewsListItem(news: News, onNewsClick: (News) -> Unit) {
 private fun SectionHeader(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        modifier = Modifier.padding(horizontal = 16.dp)
+        style = MaterialTheme.typography.titleLarge.copy(
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            color = MaterialTheme.colorScheme.primary
+        ),
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     )
 }
 
@@ -379,13 +310,16 @@ private fun EmptyState(message: String) {
         Icon(
             imageVector = Icons.Outlined.Info,
             contentDescription = "Empty",
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(56.dp),
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = message,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 18.sp
+            ),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
     }
@@ -403,32 +337,31 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
         Icon(
             imageVector = Icons.Outlined.Warning,
             contentDescription = "Error",
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(56.dp),
             tint = MaterialTheme.colorScheme.error
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = message,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 18.sp
+            ),
             color = MaterialTheme.colorScheme.error
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onRetry,
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
         ) {
-            Text("Try Again")
+            Text(
+                text = "Try Again",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
         }
-    }
-}
-
-private fun formatDate(dateString: String): String {
-    return try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-        val date = inputFormat.parse(dateString)
-        outputFormat.format(date ?: Date())
-    } catch (e: Exception) {
-        dateString
     }
 }

@@ -1,40 +1,50 @@
 package com.gk.news_pro.page.screen.explore_screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.NewsRepository
+import com.gk.news_pro.page.components.NewsCard
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
 import com.gk.news_pro.page.screen.explore_sceen.ExploreUiState
 import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -43,132 +53,144 @@ fun ExploreScreen(
         factory = ViewModelFactory(NewsRepository())
     ),
     onNewsClick: (News) -> Unit = {},
-    onCategoryClick: (String) -> Unit = {}
+    onBookmarkClick: (News, Boolean) -> Unit = { _, _ -> }
 ) {
     val newsState by viewModel.newsState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val categories = viewModel.categories
-
-    val trendingNews = remember { mutableStateOf<List<News>>(emptyList()) }
-    val searchResults = remember { mutableStateOf<List<News>>(emptyList()) }
-
-    LaunchedEffect(newsState) {
-        when (newsState) {
-            is ExploreUiState.Success -> {
-                val allNews = (newsState as ExploreUiState.Success).news
-                trendingNews.value = allNews
-                    .filter { it.category != null }
-                    .sortedByDescending { it.title }
-                    .take(5)
-            }
-            else -> {}
-        }
-    }
-
-    LaunchedEffect(searchQuery) {
-        if (searchQuery.isNotEmpty()) {
-            viewModel.searchNews(searchQuery)
-        }
-    }
+    val trendingNews by viewModel.trendingNews.collectAsState()
+    val bookmarkedNews by viewModel.bookmarkedNews.collectAsState()
 
     Scaffold(
         topBar = {
-            ExploreAppBar()
-        }
+            DiscoverTopBar()
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Search Bar
-            item {
-                SearchBar(
-                    query = searchQuery,
-                    onQueryChange = { viewModel.updateSearchQuery(it) },
-                    onSearch = { viewModel.searchNews(searchQuery) },
-                    onClear = { viewModel.clearSearch() }
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.1f),
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
                 )
-            }
-
-            if (searchQuery.isEmpty()) {
-                // Categories Section
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Search Bar
                 item {
-                    CategoriesSection(
-                        categories = categories,
-                        selectedCategory = selectedCategory,
-                        onCategorySelected = { category ->
-                            viewModel.fetchNewsByCategory(category)
-                            onCategoryClick(category)
-                        }
+                    SearchBar(
+                        query = searchQuery,
+                        onQueryChange = viewModel::updateSearchQuery,
+                        onSearch = { viewModel.searchNews(searchQuery) },
+                        onClear = viewModel::clearSearch
                     )
                 }
 
-                // Trending Section
-                if (trendingNews.value.isNotEmpty()) {
+                if (searchQuery.isEmpty()) {
+                    // Trending Section
                     item {
-                        SectionHeader(title = "Trending This Week")
-                    }
-                    item {
-                        TrendingNewsSection(
-                            newsList = trendingNews.value,
-                            onNewsClick = onNewsClick
+                        TrendingSection(
+                            news = trendingNews,
+                            bookmarkedNews = bookmarkedNews,
+                            onNewsClick = onNewsClick,
+                            onBookmarkClick = onBookmarkClick
                         )
                     }
+
+                    // Categories Section
+                    item {
+                        CategoryStrip(
+                            categories = categories,
+                            selectedCategory = selectedCategory,
+                            onCategorySelected = viewModel::fetchNewsByCategory
+                        )
+                    }
+
+                    // News Content
+                    when (newsState) {
+                        is ExploreUiState.Success -> {
+                            val newsList = (newsState as ExploreUiState.Success).news
+                            items(newsList) { news ->
+                                NewsCard(
+                                    news = news,
+                                    onClick = { onNewsClick(news) },
+                                    onBookmarkClick = { isBookmarked -> onBookmarkClick(news, isBookmarked) },
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    accentColor = MaterialTheme.colorScheme.secondary,
+                                    cardHeight = 220.dp,
+                                    shadowElevation = 6.dp,
+                                    showBookmarkButton = true,
+                                    isBookmarked = bookmarkedNews.contains(news),
+                                    showCategoryBadge = true,
+                                    isTrending = false
+                                )
+                            }
+                        }
+                        is ExploreUiState.Loading -> {
+                            item { LoadingIndicator() }
+                        }
+                        is ExploreUiState.Error -> {
+                            item {
+                                ErrorMessage(
+                                    message = (newsState as ExploreUiState.Error).message,
+                                    onRetry = viewModel::retry
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Search Results
+                    when (newsState) {
+                        is ExploreUiState.Success -> {
+                            val results = (newsState as ExploreUiState.Success).news
+                            if (results.isEmpty()) {
+                                item { EmptySearchResults(query = searchQuery) }
+                            } else {
+                                items(results) { news ->
+                                    NewsCard(
+                                        news = news,
+                                        onClick = { onNewsClick(news) },
+                                        onBookmarkClick = { isBookmarked -> onBookmarkClick(news, isBookmarked) },
+                                        modifier = Modifier.padding(horizontal = 16.dp),
+                                        accentColor = MaterialTheme.colorScheme.secondary,
+                                        cardHeight = 220.dp,
+                                        shadowElevation = 6.dp,
+                                        showBookmarkButton = true,
+                                        isBookmarked = bookmarkedNews.contains(news),
+                                        showCategoryBadge = true,
+                                        isTrending = false
+                                    )
+                                }
+                            }
+                        }
+                        is ExploreUiState.Loading -> {
+                            item { LoadingIndicator() }
+                        }
+                        is ExploreUiState.Error -> {
+                            item {
+                                ErrorMessage(
+                                    message = (newsState as ExploreUiState.Error).message,
+                                    onRetry = { viewModel.searchNews(searchQuery) }
+                                )
+                            }
+                        }
+                    }
                 }
 
-                // Popular Categories Section
+                // Bottom spacer
                 item {
-                    SectionHeader(title = "Popular Categories")
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
-                item {
-                    PopularCategoriesSection(
-                        categories = categories.filter { it != selectedCategory },
-                        onCategoryClick = { category ->
-                            viewModel.fetchNewsByCategory(category)
-                            onCategoryClick(category)
-                        }
-                    )
-                }
-            } else {
-                // Search Results
-                when (newsState) {
-                    is ExploreUiState.Success -> {
-                        if (searchResults.value.isEmpty()) {
-                            item {
-                                EmptyState(message = "No results found for \"$searchQuery\"")
-                            }
-                        } else {
-                            item {
-                                SectionHeader(title = "Search Results")
-                            }
-                            items(searchResults.value) { news ->
-                                NewsListItem(news = news, onNewsClick = onNewsClick)
-                            }
-                        }
-                    }
-                    is ExploreUiState.Loading -> {
-                        item {
-                            LoadingState()
-                        }
-                    }
-                    is ExploreUiState.Error -> {
-                        item {
-                            ErrorState(
-                                message = (newsState as ExploreUiState.Error).message,
-                                onRetry = { viewModel.searchNews(searchQuery) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Bottom spacer
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -176,21 +198,32 @@ fun ExploreScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExploreAppBar() {
+private fun DiscoverTopBar() {
     CenterAlignedTopAppBar(
         title = {
             Text(
                 text = "Explore",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontSize = 30.sp
                 )
             )
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
             titleContentColor = MaterialTheme.colorScheme.onBackground
-        )
+        ),
+        modifier = Modifier
+            .shadow(elevation = 6.dp, shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+            .background(
+                Brush.horizontalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f),
+                        MaterialTheme.colorScheme.secondaryContainer
+                    )
+                )
+            )
     )
 }
 
@@ -204,76 +237,160 @@ private fun SearchBar(
 ) {
     val focusManager = LocalFocusManager.current
 
-    TextField(
-        value = query,
-        onValueChange = onQueryChange,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        placeholder = { Text("Search for news...") },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Search",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-        },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = onClear) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Clear",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        TextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .shadow(6.dp, RoundedCornerShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
+            placeholder = {
+                Text(
+                    "Explore news, topics, or sources...",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            trailingIcon = {
+                AnimatedVisibility(
+                    visible = query.isNotEmpty(),
+                    enter = fadeIn(animationSpec = tween(200)),
+                    exit = fadeOut(animationSpec = tween(200))
+                ) {
+                    IconButton(onClick = onClear) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
-            }
-        },
-        shape = RoundedCornerShape(16.dp),
-        colors = TextFieldDefaults.textFieldColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent
-        ),
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(
-            onSearch = {
-                onSearch()
-                focusManager.clearFocus()
-            }
+            },
+            shape = RoundedCornerShape(24.dp),
+            colors = TextFieldDefaults.textFieldColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                cursorColor = MaterialTheme.colorScheme.secondary
+            ),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    onSearch()
+                    focusManager.clearFocus()
+                }
+            )
         )
-    )
+    }
 }
 
 @Composable
-private fun CategoriesSection(
+private fun TrendingSection(
+    news: List<News>,
+    bookmarkedNews: List<News>,
+    onNewsClick: (News) -> Unit,
+    onBookmarkClick: (News, Boolean) -> Unit
+) {
+    if (news.isEmpty()) return
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Text(
+            text = "What's Hot",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary,
+                fontSize = 24.sp
+            ),
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(news) { trendingNews ->
+                NewsCard(
+                    news = trendingNews,
+                    onClick = { onNewsClick(trendingNews) },
+                    onBookmarkClick = { isBookmarked -> onBookmarkClick(trendingNews, isBookmarked) },
+                    modifier = Modifier
+                        .width(300.dp),
+                    accentColor = MaterialTheme.colorScheme.secondary,
+                    cardHeight = 200.dp,
+                    shadowElevation = 8.dp,
+                    showBookmarkButton = true,
+                    isBookmarked = bookmarkedNews.contains(trendingNews),
+                    showCategoryBadge = true,
+                    isTrending = true
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryStrip(
     categories: List<String>,
     selectedCategory: String,
     onCategorySelected: (String) -> Unit
 ) {
+    val categoryColors = mapOf(
+        "general" to Color(0xFF0288D1),
+        "business" to Color(0xFF388E3C),
+        "entertainment" to Color(0xFFD81B60),
+        "health" to Color(0xFFFBC02D),
+        "science" to Color(0xFF7B1FA2),
+        "sports" to Color(0xFFE64A19),
+        "technology" to Color(0xFF455A64)
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Text(
-            text = "Browse Categories",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            text = "Discover Topics",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary,
+                fontSize = 24.sp
+            ),
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
         LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
         ) {
             items(categories) { category ->
-                CategoryChip(
+                val color = categoryColors[category] ?: MaterialTheme.colorScheme.secondary
+
+                CategoryPill(
                     category = category,
                     isSelected = category == selectedCategory,
+                    color = color,
                     onClick = { onCategorySelected(category) }
                 )
             }
@@ -282,234 +399,111 @@ private fun CategoriesSection(
 }
 
 @Composable
-private fun PopularCategoriesSection(
-    categories: List<String>,
-    onCategoryClick: (String) -> Unit
+private fun CategoryPill(
+    category: String,
+    isSelected: Boolean,
+    color: Color,
+    onClick: () -> Unit
 ) {
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(categories.take(6)) { category ->
-            PopularCategoryItem(category = category, onClick = { onCategoryClick(category) })
-        }
-    }
-}
+    val containerColor = if (isSelected) color else MaterialTheme.colorScheme.surface
+    val contentColor = if (isSelected) Color.White else color
 
-@Composable
-private fun PopularCategoryItem(category: String, onClick: () -> Unit) {
-    Card(
+    Surface(
         modifier = Modifier
-            .width(120.dp)
-            .height(80.dp),
-        shape = RoundedCornerShape(12.dp),
-        onClick = onClick
+            .clip(RoundedCornerShape(20.dp))
+            .height(40.dp)
+            .shadow(if (isSelected) 4.dp else 0.dp, RoundedCornerShape(20.dp))
+            .clickable { onClick() },
+        color = containerColor,
+        shape = RoundedCornerShape(20.dp),
+        border = if (!isSelected) BorderStroke(1.5.dp, color.copy(alpha = 0.4f)) else null
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(horizontal = 20.dp)
         ) {
             Text(
                 text = category.replaceFirstChar { it.uppercase() },
                 style = MaterialTheme.typography.labelLarge.copy(
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
-                )
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = contentColor,
+                    fontSize = 16.sp
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
 @Composable
-private fun TrendingNewsSection(newsList: List<News>, onNewsClick: (News) -> Unit) {
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(newsList) { news ->
-            TrendingNewsItem(news = news, onClick = { onNewsClick(news) })
-        }
-    }
-}
-
-@Composable
-private fun TrendingNewsItem(news: News, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .width(280.dp)
-            .height(160.dp),
-        shape = RoundedCornerShape(16.dp),
-        onClick = onClick
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
-                model = news.image_url ?: "",
-                contentDescription = news.title,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f)
-                            ),
-                            startY = 300f
-                        )
-                    )
-            )
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = news.title ?: "",
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Trending",
-                        modifier = Modifier.size(16.dp),
-                        tint = Color(0xFFFFD700)
-                    )
-                    Text(
-                        text = "Trending",
-                        style = MaterialTheme.typography.labelSmall.copy(color = Color.White)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NewsListItem(news: News, onNewsClick: (News) -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        onClick = { onNewsClick(news) }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            ) {
-                AsyncImage(
-                    model = news.image_url ?: "",
-                    contentDescription = news.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = news.title ?: "",
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = news.description ?: "",
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = formatDate(news.pubDate ?: ""),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        modifier = Modifier.padding(horizontal = 16.dp)
-    )
-}
-
-@Composable
-private fun CategoryChip(
-    category: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    FilterChip(
-        selected = isSelected,
-        onClick = onClick,
-        label = {
-            Text(
-                text = category.replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1
-            )
-        },
-        modifier = Modifier.height(36.dp)
-    )
-}
-
-@Composable
-private fun LoadingState() {
+private fun LoadingIndicator() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp),
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.size(56.dp),
+            strokeWidth = 4.dp
+        )
     }
 }
 
 @Composable
-private fun EmptyState(message: String) {
+private fun ErrorMessage(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = "Error",
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 18.sp
+            ),
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary
+            ),
+            shape = RoundedCornerShape(12.dp),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 4.dp,
+                pressedElevation = 6.dp
+            )
+        ) {
+            Text(
+                "Try Again",
+                style = MaterialTheme.typography.labelLarge,
+                fontSize = 16.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptySearchResults(query: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -519,56 +513,52 @@ private fun EmptyState(message: String) {
     ) {
         Icon(
             imageVector = Icons.Default.Search,
-            contentDescription = "Empty",
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            contentDescription = "No results",
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
+            text = "No results found for",
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 18.sp
+            ),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
-    }
-}
-
-@Composable
-private fun ErrorState(message: String, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Close,
-            contentDescription = "Error",
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.error
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "\"$query\"",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            ),
+            color = MaterialTheme.colorScheme.secondary
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error
+            text = "Try different keywords or topics",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 16.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onRetry,
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text("Try Again")
-        }
     }
 }
-
-private fun formatDate(dateString: String): String {
+ public fun formatRelativeTime(dateString: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-        val date = inputFormat.parse(dateString)
-        outputFormat.format(date ?: Date())
+        val date = inputFormat.parse(dateString) ?: return ""
+
+        val now = System.currentTimeMillis()
+        val diff = now - date.time
+
+        when {
+            diff < 60 * 1000 -> "Just now"
+            diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} min ago"
+            diff < 24 * 60 * 60 * 1000 -> "${diff / (60 * 60 * 1000)} hours ago"
+            diff < 48 * 60 * 60 * 1000 -> "Yesterday"
+            else -> SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(date)
+        }
     } catch (e: Exception) {
         dateString
     }
