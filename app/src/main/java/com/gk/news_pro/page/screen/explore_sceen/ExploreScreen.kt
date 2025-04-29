@@ -63,10 +63,7 @@ fun ExploreScreen(
     val bookmarkedNews by viewModel.bookmarkedNews.collectAsState()
 
     Scaffold(
-        topBar = {
-            DiscoverTopBar()
-        },
-        containerColor = MaterialTheme.colorScheme.background
+
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -194,37 +191,6 @@ fun ExploreScreen(
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DiscoverTopBar() {
-    CenterAlignedTopAppBar(
-        title = {
-            Text(
-                text = "Explore",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.secondary,
-                    fontSize = 30.sp
-                )
-            )
-        },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
-            titleContentColor = MaterialTheme.colorScheme.onBackground
-        ),
-        modifier = Modifier
-            .shadow(elevation = 6.dp, shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f),
-                        MaterialTheme.colorScheme.secondaryContainer
-                    )
-                )
-            )
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

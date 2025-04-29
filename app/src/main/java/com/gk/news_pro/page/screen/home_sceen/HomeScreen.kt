@@ -19,10 +19,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -58,10 +60,6 @@ fun HomeScreen(
     }
 
     Scaffold(
-        topBar = {
-            HomeAppBar()
-        },
-        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -159,58 +157,65 @@ fun HomeScreen(
         }
     }
 }
-
 @Composable
 private fun GreetingSection() {
     val greeting = getGreetingMessage()
-    AnimatedVisibility(
-        visible = true,
-        enter = fadeIn(),
-        exit = fadeOut()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .shadow(4.dp, RoundedCornerShape(16.dp)),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
+        // First line with greeting and icon
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Text(
+                text = greeting,
+                style = MaterialTheme.typography.displaySmall.copy(
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            )
+
+            IconButton(
+                onClick = { /* Handle profile click */ },
+                modifier = Modifier.size(40.dp)
             ) {
-                Column {
-                    Text(
-                        text = greeting,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Stay updated with the latest news!",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-                }
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Greeting Icon",
-                    tint = MaterialTheme.colorScheme.secondary,
+                    contentDescription = "Profile",
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(32.dp)
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(3.dp))
+
+        // Subtitle with nice gradient effect
+        Text(
+            text = "Stay updated with today's news",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.W400,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+            ),
+            modifier = Modifier.alpha(0.9f)
+        )
+
+        // Decorative divider
+        Spacer(modifier = Modifier.height(12.dp))
+        Divider(
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+            thickness = 1.dp,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
     }
 }
-
 private fun getGreetingMessage(): String {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     return when (hour) {
