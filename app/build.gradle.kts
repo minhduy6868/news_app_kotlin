@@ -75,6 +75,10 @@ dependencies {
     implementation(libs.generativeai)
     implementation(libs.androidx.tracing.perfetto.handshake)
     implementation(libs.common)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.activity)
+    implementation(libs.androidx.constraintlayout)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
