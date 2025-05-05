@@ -5,14 +5,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -24,43 +24,55 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.GeminiRepository
 import com.gk.news_pro.data.repository.NewsRepository
+import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
 import com.gk.news_pro.page.screen.account_screen.AccountScreen
+import com.gk.news_pro.page.screen.auth.LoginScreen
+import com.gk.news_pro.page.screen.auth.RegisterScreen
 import com.gk.news_pro.page.screen.detail_screen.NewsDetailScreen
+import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
 import com.gk.news_pro.page.screen.explore_screen.ExploreScreen
 import com.gk.news_pro.page.screen.favorite_screen.FavoriteScreen
 import com.gk.news_pro.page.screen.home_screen.HomeScreen
 import com.gk.news_pro.page.screen.home_screen.HomeViewModel
+import com.google.ai.client.generativeai.BuildConfig
+import kotlinx.coroutines.launch
 
-sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
+sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Home : Screen("home", "Home", Icons.Filled.Home)
     object Explore : Screen("explore", "Explore", Icons.Filled.DateRange)
     object Favorite : Screen("favorite", "Favorite", Icons.Filled.Favorite)
     object Account : Screen("account", "Account", Icons.Filled.AccountCircle)
-    object NewsDetail : Screen("news_detail/{articleId}", "News Detail", Icons.Filled.Home) {
+    object NewsDetail : Screen("news_detail/{articleId}", "News Detail") {
         fun createRoute(articleId: String) = "news_detail/$articleId"
     }
+    object Login : Screen("login", "Đăng nhập")
+    object Register : Screen("register", "Đăng ký")
 }
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val items = listOf(Screen.Home, Screen.Explore, Screen.Favorite, Screen.Account)
+    val bottomNavItems = listOf(Screen.Home, Screen.Explore, Screen.Favorite, Screen.Account)
     val newsRepository = NewsRepository()
     val geminiRepository = GeminiRepository()
+    val userRepository = UserRepository()
     val viewModel: HomeViewModel = viewModel(factory = ViewModelFactory(newsRepository))
+    val coroutineScope = rememberCoroutineScope()
+    val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
+    val startDestination = if (isLoggedIn) Screen.Home.route else Screen.Login.route
 
     Scaffold(
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route?.substringBefore("/{")
+            val showBottomBar = bottomNavItems.any { it.route == currentRoute }
 
-            if (currentRoute != Screen.NewsDetail.route.substringBefore("/{")) {
+            if (showBottomBar) {
                 ModernBottomBar(
-                    items = items,
+                    items = bottomNavItems,
                     currentRoute = currentRoute,
                     onItemClick = { screen ->
                         navController.navigate(screen.route) {
@@ -74,27 +86,72 @@ fun AppNavigation() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(Screen.Login.route) {
+                LoginScreen(
+                    userRepository = userRepository,
+                    onLoginSuccess = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToRegister = {
+                        navController.navigate(Screen.Register.route)
+                    }
+                )
+            }
+            composable(Screen.Register.route) {
+                RegisterScreen(
+                    userRepository = userRepository,
+                    onRegisterSuccess = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Register.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToLogin = {
+                        navController.popBackStack()
+                    }
+                )
+            }
             composable(Screen.Home.route) {
                 HomeScreen(
                     viewModel = viewModel,
                     onNewsClick = { news ->
-                        Log.d("AppNavigation", "Navigating to news_detail with articleId: ${news.article_id}")
+                        if (BuildConfig.DEBUG) {
+                            Log.d("AppNavigation", "Navigating to news detail with ID: ${news.article_id}")
+                        }
                         navController.navigate(Screen.NewsDetail.createRoute(news.article_id))
                     }
                 )
             }
-            composable(Screen.Explore.route) { ExploreScreen() }
-            composable(Screen.Favorite.route) { FavoriteScreen() }
-            composable(Screen.Account.route) { AccountScreen() }
+            composable(Screen.Explore.route) {
+                val exploreViewModel: ExploreViewModel = viewModel(factory = ViewModelFactory(newsRepository))
+                ExploreScreen(viewModel = exploreViewModel)
+            }
+            composable(Screen.Favorite.route) {  }
+            composable(Screen.Account.route) {
+                AccountScreen(
+                    userRepository = userRepository,
+                    onLogout = {
+                        coroutineScope.launch {
+                            userRepository.signOut()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
             composable(
                 route = Screen.NewsDetail.route,
                 arguments = listOf(navArgument("articleId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val articleId = backStackEntry.arguments?.getString("articleId") ?: ""
-                Log.d("NewsDetailScreen", "Received articleId: $articleId")
+                if (BuildConfig.DEBUG) {
+                    Log.d("NewsDetailScreen", "Received articleId: $articleId")
+                }
                 val news = viewModel.getNewsById(articleId)
                 if (news != null) {
                     NewsDetailScreen(
@@ -103,14 +160,25 @@ fun AppNavigation() {
                         geminiRepository = geminiRepository
                     )
                 } else {
-                    Log.e("NewsDetailScreen", "No news found for articleId: $articleId")
-                    Text(
-                        text = "Article not found",
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    LaunchedEffect(Unit) {
-                        navController.popBackStack()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Không tìm thấy bài viết",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { navController.navigate(Screen.Home.route) },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Quay lại Trang chủ")
+                        }
                     }
                 }
             }
@@ -141,7 +209,7 @@ fun ModernBottomBar(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = screen.icon,
+                            imageVector = screen.icon!!,
                             contentDescription = screen.title,
                             modifier = Modifier.size(24.dp)
                         )

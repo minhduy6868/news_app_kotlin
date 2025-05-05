@@ -32,19 +32,22 @@ import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(
+fun RegisterScreen(
     userRepository: UserRepository,
-    onLoginSuccess: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onRegisterSuccess: () -> Unit,
+    onNavigateToLogin: () -> Unit
 ) {
-    val viewModel: LoginViewModel = viewModel(
+    val viewModel: RegisterViewModel = viewModel(
         factory = ViewModelFactory(userRepository)
     )
     val uiState by viewModel.uiState.collectAsState()
+    val username by viewModel.username.collectAsState()
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
+    val confirmPassword by viewModel.confirmPassword.collectAsState()
     val focusManager = LocalFocusManager.current
     var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     Scaffold { innerPadding ->
         Box(
@@ -68,7 +71,7 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Đăng nhập",
+                    text = "Đăng ký",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.secondary,
@@ -76,6 +79,33 @@ fun LoginScreen(
                     ),
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
+                TextField(
+                    value = username,
+                    onValueChange = viewModel::updateUsername,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .shadow(6.dp, RoundedCornerShape(24.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
+                    placeholder = {
+                        Text(
+                            "Nhập tên người dùng",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = TextFieldDefaults.textFieldColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        cursorColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 TextField(
                     value = email,
                     onValueChange = viewModel::updateEmail,
@@ -137,10 +167,47 @@ fun LoginScreen(
                         cursorColor = MaterialTheme.colorScheme.secondary
                     ),
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                TextField(
+                    value = confirmPassword,
+                    onValueChange = viewModel::updateConfirmPassword,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .shadow(6.dp, RoundedCornerShape(24.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
+                    placeholder = {
+                        Text(
+                            "Xác nhận mật khẩu",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                            Icon(
+                                imageVector = if (confirmPasswordVisible) Icons.Filled.FavoriteBorder else Icons.Filled.Favorite,
+                                contentDescription = if (confirmPasswordVisible) "Ẩn xác nhận mật khẩu" else "Hiện xác nhận mật khẩu",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = TextFieldDefaults.textFieldColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        cursorColor = MaterialTheme.colorScheme.secondary
+                    ),
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(
                         onDone = {
-                            viewModel.login()
+                            viewModel.register()
                             focusManager.clearFocus()
                         }
                     )
@@ -148,7 +215,7 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = {
-                        viewModel.login()
+                        viewModel.register()
                         focusManager.clearFocus()
                     },
                     modifier = Modifier
@@ -165,25 +232,25 @@ fun LoginScreen(
                     )
                 ) {
                     Text(
-                        "Đăng nhập",
+                        "Đăng ký",
                         style = MaterialTheme.typography.labelLarge,
                         fontSize = 18.sp
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Chưa có tài khoản? Đăng ký",
+                    text = "Đã có tài khoản? Đăng nhập",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.secondary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     ),
                     modifier = Modifier
-                        .clickable { onNavigateToRegister() }
+                        .clickable { onNavigateToLogin() }
                         .padding(8.dp)
                 )
                 when (uiState) {
-                    is LoginUiState.Loading -> {
+                    is RegisterUiState.Loading -> {
                         Spacer(modifier = Modifier.height(24.dp))
                         CircularProgressIndicator(
                             color = MaterialTheme.colorScheme.secondary,
@@ -191,72 +258,22 @@ fun LoginScreen(
                             strokeWidth = 4.dp
                         )
                     }
-                    is LoginUiState.Success -> {
+                    is RegisterUiState.Success -> {
                         LaunchedEffect(Unit) {
-                            onLoginSuccess()
+                            onRegisterSuccess()
                             viewModel.resetUiState()
                         }
                     }
-                    is LoginUiState.Error -> {
+                    is RegisterUiState.Error -> {
                         Spacer(modifier = Modifier.height(24.dp))
-                        ErrorMessage(
-                            message = (uiState as LoginUiState.Error).message,
-                            onRetry = { viewModel.login() }
-                        )
+//                        ErrorMessage(
+//                            message = (uiState as RegisterUiState.Error).message,
+//                            onRetry = { viewModel.register() }
+//                        )
                     }
-                    is LoginUiState.Idle -> {}
+                    is RegisterUiState.Idle -> {}
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ErrorMessage(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Warning,
-            contentDescription = "Lỗi",
-            modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.error
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Medium,
-                fontSize = 18.sp
-            ),
-            color = MaterialTheme.colorScheme.error,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary
-            ),
-            shape = RoundedCornerShape(12.dp),
-            elevation = ButtonDefaults.buttonElevation(
-                defaultElevation = 4.dp,
-                pressedElevation = 6.dp
-            )
-        ) {
-            Text(
-                "Thử lại",
-                style = MaterialTheme.typography.labelLarge,
-                fontSize = 16.sp
-            )
         }
     }
 }
