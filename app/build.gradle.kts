@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    id("com.google.gms.google-services")
 
 }
 
@@ -60,6 +61,11 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
+
+
+    //Firebase
+    implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
+    implementation("com.google.firebase:firebase-analytics")
 
     // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
