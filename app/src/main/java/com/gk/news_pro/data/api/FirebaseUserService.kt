@@ -1,4 +1,4 @@
-package com.gk.news_pro.data.service
+
 
 import android.util.Log
 import com.google.firebase.database.DatabaseReference
@@ -97,14 +97,36 @@ class FirebaseUserService {
         try {
             val snapshot = usersRef.child(uid).child("favoriteNews").get().await()
             val newsList = mutableListOf<News>()
-            snapshot.children.forEach {
-                it.getValue(News::class.java)?.let { news -> newsList.add(news) }
+            snapshot.children.forEach { child ->
+                try {
+                    val news = child.getValue(News::class.java)
+                    if (news != null) {
+                        newsList.add(news)
+                    } else {
+                        Log.w(TAG, "getFavoriteNews: Failed to parse news for key ${child.key}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "getFavoriteNews: Error parsing news for key ${child.key}: ${e.message}", e)
+                }
             }
             Log.d(TAG, "getFavoriteNews: Retrieved ${newsList.size} favorite news for user $uid")
             return newsList
         } catch (e: Exception) {
             Log.e(TAG, "getFavoriteNews: Failed to retrieve favorite news for user $uid: ${e.message}", e)
             return emptyList()
+        }
+    }
+    suspend fun removeFavoriteNews(uid: String, newsId: String) {
+        try {
+            usersRef.child(uid)
+                .child("favoriteNews")
+                .child(newsId)
+                .removeValue()
+                .await()
+            Log.d(TAG, "removeFavoriteNews: Successfully removed news $newsId for user $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "removeFavoriteNews: Failed to remove news $newsId for user $uid: ${e.message}", e)
+            throw e
         }
     }
 

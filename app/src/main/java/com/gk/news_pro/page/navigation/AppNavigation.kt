@@ -64,6 +64,10 @@ fun AppNavigation() {
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
     val startDestination = if (isLoggedIn) Screen.Home.route else Screen.Login.route
 
+    LaunchedEffect(isLoggedIn) {
+        Log.d("AppNavigation", "isLoggedIn: $isLoggedIn, startDestination: $startDestination")
+    }
+
     Scaffold(
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -75,9 +79,14 @@ fun AppNavigation() {
                     items = bottomNavItems,
                     currentRoute = currentRoute,
                     onItemClick = { screen ->
-                        navController.navigate(screen.route) {
-                            popUpTo(navController.graph.startDestinationId)
-                            launchSingleTop = true
+                        if ((screen == Screen.Favorite || screen == Screen.Account) && !userRepository.isLoggedIn()) {
+                            Log.d("AppNavigation", "User not logged in, redirecting to Login")
+                            navController.navigate(Screen.Login.route)
+                        } else {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                                launchSingleTop = true
+                            }
                         }
                     }
                 )
@@ -93,6 +102,7 @@ fun AppNavigation() {
                 LoginScreen(
                     userRepository = userRepository,
                     onLoginSuccess = {
+                        Log.d("AppNavigation", "Login successful, navigating to Home")
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
@@ -106,6 +116,7 @@ fun AppNavigation() {
                 RegisterScreen(
                     userRepository = userRepository,
                     onRegisterSuccess = {
+                        Log.d("AppNavigation", "Register successful, navigating to Login")
                         navController.navigate(Screen.Login.route) {
                             popUpTo(Screen.Register.route) { inclusive = true }
                         }
@@ -127,16 +138,33 @@ fun AppNavigation() {
                 )
             }
             composable(Screen.Explore.route) {
-                val exploreViewModel: ExploreViewModel = viewModel(factory = ViewModelFactory(newsRepository))
-                ExploreScreen(viewModel = exploreViewModel)
+                val exploreViewModel: ExploreViewModel = viewModel(
+                    factory = ViewModelFactory(listOf(newsRepository, userRepository))
+                )
+                ExploreScreen(
+                    userRepository = userRepository,
+                    viewModel = exploreViewModel,
+                    onNewsClick = { news ->
+                        navController.navigate(Screen.NewsDetail.createRoute(news.article_id))
+                    }
+                )
             }
-            composable(Screen.Favorite.route) {  }
+            composable(Screen.Favorite.route) {
+                Log.d("AppNavigation", "Navigating to FavoriteScreen")
+                FavoriteScreen(
+                    userRepository = userRepository,
+                    onNewsClick = { news ->
+                        navController.navigate(Screen.NewsDetail.createRoute(news.article_id))
+                    }
+                )
+            }
             composable(Screen.Account.route) {
                 AccountScreen(
                     userRepository = userRepository,
                     onLogout = {
                         coroutineScope.launch {
                             userRepository.signOut()
+                            Log.d("AppNavigation", "User logged out, navigating to Login")
                             navController.navigate(Screen.Login.route) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }

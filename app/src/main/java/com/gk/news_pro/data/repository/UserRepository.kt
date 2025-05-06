@@ -1,9 +1,9 @@
 package com.gk.news_pro.data.repository
 
+import FirebaseUserService
 import android.util.Log
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.model.User
-import com.gk.news_pro.data.service.FirebaseUserService
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
 
@@ -116,7 +116,13 @@ class UserRepository(
             Log.e(TAG, "saveFavoriteNews: No user logged in")
             throw Exception("Chưa đăng nhập")
         }
-        firebaseService.addFavoriteNews(firebaseUser.uid, news)
+        try {
+            firebaseService.addFavoriteNews(firebaseUser.uid, news)
+            Log.d(TAG, "saveFavoriteNews: Successfully saved news ${news.article_id}")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveFavoriteNews: Failed to save news: ${e.message}")
+            throw e
+        }
     }
 
     suspend fun getFavoriteNewsList(): List<News> {
@@ -124,30 +130,43 @@ class UserRepository(
             Log.e(TAG, "getFavoriteNewsList: No user logged in")
             throw Exception("Chưa đăng nhập")
         }
-        return firebaseService.getFavoriteNews(firebaseUser.uid)
+        try {
+            val newsList = firebaseService.getFavoriteNews(firebaseUser.uid)
+            Log.d(TAG, "getFavoriteNewsList: Retrieved ${newsList.size} news")
+            return newsList
+        } catch (e: Exception) {
+            Log.e(TAG, "getFavoriteNewsList: Failed to retrieve news: ${e.message}")
+            throw e
+        }
     }
 
-//    suspend fun removeFavoriteNews(newsId: String) {
-//        val firebaseUser = auth.currentUser ?: run {
-//            Log.e(TAG, "removeFavoriteNews: No user logged in")
-//            throw Exception("Chưa đăng nhập")
-//        }
-//        try {
-//            Log.d(TAG, "removeFavoriteNews: Removing news $newsId for user ${firebaseUser.uid}")
-//            firebaseService.removeFavoriteNews(firebaseUser.uid, newsId)
-//            Log.d(TAG, "removeFavoriteNews: News removed")
-//        } catch (e: Exception) {
-//            Log.e(TAG, "removeFavoriteNews: Failed to remove news: ${e.message}", e)
-//            throw Exception("Xóa tin tức yêu thích thất bại: ${e.message}")
-//        }
-//    }
+    suspend fun removeFavoriteNews(newsId: String) {
+        val firebaseUser = auth.currentUser ?: run {
+            Log.e(TAG, "removeFavoriteNews: No user logged in")
+            throw Exception("Chưa đăng nhập")
+        }
+        try {
+            Log.d(TAG, "removeFavoriteNews: Removing news $newsId for user ${firebaseUser.uid}")
+            firebaseService.removeFavoriteNews(firebaseUser.uid, newsId)
+            Log.d(TAG, "removeFavoriteNews: News removed")
+        } catch (e: Exception) {
+            Log.e(TAG, "removeFavoriteNews: Failed to remove news: ${e.message}", e)
+            throw Exception("Xóa tin tức yêu thích thất bại: ${e.message}")
+        }
+    }
 
     suspend fun updateFavoriteTopics(topics: Map<String, Int>) {
         val firebaseUser = auth.currentUser ?: run {
             Log.e(TAG, "updateFavoriteTopics: No user logged in")
             throw Exception("Chưa đăng nhập")
         }
-        firebaseService.updateFavoriteTopics(firebaseUser.uid, topics)
+        try {
+            firebaseService.updateFavoriteTopics(firebaseUser.uid, topics)
+            Log.d(TAG, "updateFavoriteTopics: Successfully updated topics")
+        } catch (e: Exception) {
+            Log.e(TAG, "updateFavoriteTopics: Failed to update topics: ${e.message}")
+            throw e
+        }
     }
 
     fun signOut() {

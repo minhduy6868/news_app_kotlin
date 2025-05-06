@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.NewsRepository
+import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.components.NewsCard
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
 import com.gk.news_pro.page.screen.explore_sceen.ExploreUiState
@@ -48,8 +49,9 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ExploreScreen(
+    userRepository: UserRepository,
     viewModel: ExploreViewModel = viewModel(
-        factory = ViewModelFactory(NewsRepository())
+        factory = ViewModelFactory(listOf(NewsRepository(), userRepository))
     ),
     onNewsClick: (News) -> Unit = {},
     onBookmarkClick: (News, Boolean) -> Unit = { _, _ -> }
@@ -60,10 +62,9 @@ fun ExploreScreen(
     val categories = viewModel.categories
     val trendingNews by viewModel.trendingNews.collectAsState()
     val bookmarkedNews by viewModel.bookmarkedNews.collectAsState()
+    var showLoginPrompt by remember { mutableStateOf(false) }
 
-    Scaffold(
-
-    ) { innerPadding ->
+    Scaffold { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -82,7 +83,6 @@ fun ExploreScreen(
                     .padding(innerPadding),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Search Bar
                 item {
                     SearchBar(
                         query = searchQuery,
@@ -93,17 +93,22 @@ fun ExploreScreen(
                 }
 
                 if (searchQuery.isEmpty()) {
-                    // Trending Section
                     item {
                         TrendingSection(
                             news = trendingNews,
                             bookmarkedNews = bookmarkedNews,
                             onNewsClick = onNewsClick,
-                            onBookmarkClick = onBookmarkClick
+                            onBookmarkClick = { news, isBookmarked ->
+                                if (!userRepository.isLoggedIn() && isBookmarked) {
+                                    showLoginPrompt = true
+                                } else {
+                                    viewModel.toggleBookmark(news, isBookmarked)
+                                    onBookmarkClick(news, isBookmarked)
+                                }
+                            }
                         )
                     }
 
-                    // Categories Section
                     item {
                         CategoryStrip(
                             categories = categories,
@@ -112,7 +117,6 @@ fun ExploreScreen(
                         )
                     }
 
-                    // News Content
                     when (newsState) {
                         is ExploreUiState.Success -> {
                             val newsList = (newsState as ExploreUiState.Success).news
@@ -120,7 +124,14 @@ fun ExploreScreen(
                                 NewsCard(
                                     news = news,
                                     onClick = { onNewsClick(news) },
-                                    onBookmarkClick = { isBookmarked -> onBookmarkClick(news, isBookmarked) },
+                                    onBookmarkClick = { isBookmarked ->
+                                        if (!userRepository.isLoggedIn() && isBookmarked) {
+                                            showLoginPrompt = true
+                                        } else {
+                                            viewModel.toggleBookmark(news, isBookmarked)
+                                            onBookmarkClick(news, isBookmarked)
+                                        }
+                                    },
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     accentColor = MaterialTheme.colorScheme.secondary,
                                     cardHeight = 220.dp,
@@ -145,7 +156,6 @@ fun ExploreScreen(
                         }
                     }
                 } else {
-                    // Search Results
                     when (newsState) {
                         is ExploreUiState.Success -> {
                             val results = (newsState as ExploreUiState.Success).news
@@ -156,7 +166,14 @@ fun ExploreScreen(
                                     NewsCard(
                                         news = news,
                                         onClick = { onNewsClick(news) },
-                                        onBookmarkClick = { isBookmarked -> onBookmarkClick(news, isBookmarked) },
+                                        onBookmarkClick = { isBookmarked ->
+                                            if (!userRepository.isLoggedIn() && isBookmarked) {
+                                                showLoginPrompt = true
+                                            } else {
+                                                viewModel.toggleBookmark(news, isBookmarked)
+                                                onBookmarkClick(news, isBookmarked)
+                                            }
+                                        },
                                         modifier = Modifier.padding(horizontal = 16.dp),
                                         accentColor = MaterialTheme.colorScheme.secondary,
                                         cardHeight = 220.dp,
@@ -183,10 +200,22 @@ fun ExploreScreen(
                     }
                 }
 
-                // Bottom spacer
                 item {
                     Spacer(modifier = Modifier.height(80.dp))
                 }
+            }
+
+            if (showLoginPrompt) {
+                AlertDialog(
+                    onDismissRequest = { showLoginPrompt = false },
+                    title = { Text("Yêu cầu đăng nhập", style = MaterialTheme.typography.titleMedium) },
+                    text = { Text("Vui lòng đăng nhập để lưu tin tức yêu thích.", style = MaterialTheme.typography.bodyMedium) },
+                    confirmButton = {
+                        TextButton(onClick = { showLoginPrompt = false }) {
+                            Text("Đóng")
+                        }
+                    }
+                )
             }
         }
     }
@@ -299,8 +328,7 @@ private fun TrendingSection(
                     news = trendingNews,
                     onClick = { onNewsClick(trendingNews) },
                     onBookmarkClick = { isBookmarked -> onBookmarkClick(trendingNews, isBookmarked) },
-                    modifier = Modifier
-                        .width(300.dp),
+                    modifier = Modifier.width(300.dp),
                     accentColor = MaterialTheme.colorScheme.secondary,
                     cardHeight = 200.dp,
                     shadowElevation = 8.dp,
@@ -351,7 +379,6 @@ private fun CategoryStrip(
         ) {
             items(categories) { category ->
                 val color = categoryColors[category] ?: MaterialTheme.colorScheme.secondary
-
                 CategoryPill(
                     category = category,
                     isSelected = category == selectedCategory,
@@ -485,9 +512,7 @@ private fun EmptySearchResults(query: String) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "No results found for",
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 18.sp
-            ),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(4.dp))
@@ -502,21 +527,18 @@ private fun EmptySearchResults(query: String) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Try different keywords or topics",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontSize = 16.sp
-            ),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         )
     }
 }
- public fun formatRelativeTime(dateString: String): String {
+
+fun formatRelativeTime(dateString: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val date = inputFormat.parse(dateString) ?: return ""
-
         val now = System.currentTimeMillis()
         val diff = now - date.time
-
         when {
             diff < 60 * 1000 -> "Just now"
             diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} min ago"
