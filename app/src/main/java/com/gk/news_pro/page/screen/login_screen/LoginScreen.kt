@@ -77,7 +77,7 @@ fun LoginScreen(
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
                 TextField(
-                    value = email,
+                    value = "test@gmail.com",  //email,
                     onValueChange = viewModel::updateEmail,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -86,7 +86,7 @@ fun LoginScreen(
                         .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
                     placeholder = {
                         Text(
-                            "Nhập email của bạn",
+                            "test@gmail.com",
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -104,7 +104,7 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 TextField(
-                    value = password,
+                    value = "12345678Aa" ,   //password,
                     onValueChange = viewModel::updatePassword,
                     modifier = Modifier
                         .fillMaxWidth()
