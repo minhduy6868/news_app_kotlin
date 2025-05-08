@@ -81,7 +81,7 @@ fun ExploreScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     SearchBar(
@@ -132,10 +132,10 @@ fun ExploreScreen(
                                             onBookmarkClick(news, isBookmarked)
                                         }
                                     },
-                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    modifier = Modifier.padding(horizontal = 8.dp),
                                     accentColor = MaterialTheme.colorScheme.secondary,
-                                    cardHeight = 220.dp,
-                                    shadowElevation = 6.dp,
+                                    cardHeight = 180.dp,
+                                    shadowElevation = 4.dp,
                                     showBookmarkButton = true,
                                     isBookmarked = bookmarkedNews.contains(news),
                                     showCategoryBadge = true,
@@ -174,7 +174,7 @@ fun ExploreScreen(
                                                 onBookmarkClick(news, isBookmarked)
                                             }
                                         },
-                                        modifier = Modifier.padding(horizontal = 16.dp),
+                                        modifier = Modifier.padding(horizontal = 12.dp),
                                         accentColor = MaterialTheme.colorScheme.secondary,
                                         cardHeight = 220.dp,
                                         shadowElevation = 6.dp,
@@ -234,16 +234,18 @@ private fun SearchBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         TextField(
             value = query,
             onValueChange = onQueryChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .shadow(6.dp, RoundedCornerShape(24.dp))
-                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .height(48.dp) // Giảm chiều cao từ 56.dp
+                .shadow(4.dp, RoundedCornerShape(20.dp))
+                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+            ,
             placeholder = {
                 Text(
                     "Explore news, topics, or sources...",
@@ -314,7 +316,7 @@ private fun TrendingSection(
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary,
-                fontSize = 24.sp
+                fontSize = 16.sp
             ),
             modifier = Modifier.padding(bottom = 12.dp)
         )
@@ -328,9 +330,9 @@ private fun TrendingSection(
                     news = trendingNews,
                     onClick = { onNewsClick(trendingNews) },
                     onBookmarkClick = { isBookmarked -> onBookmarkClick(trendingNews, isBookmarked) },
-                    modifier = Modifier.width(300.dp),
+                    modifier = Modifier.width(260.dp),
                     accentColor = MaterialTheme.colorScheme.secondary,
-                    cardHeight = 200.dp,
+                    cardHeight = 140.dp,
                     shadowElevation = 8.dp,
                     showBookmarkButton = true,
                     isBookmarked = bookmarkedNews.contains(trendingNews),
@@ -368,13 +370,13 @@ private fun CategoryStrip(
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary,
-                fontSize = 24.sp
+                fontSize = 20.sp
             ),
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
             items(categories) { category ->
@@ -403,7 +405,7 @@ private fun CategoryPill(
     Surface(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .height(40.dp)
+            .height(38.dp)
             .shadow(if (isSelected) 4.dp else 0.dp, RoundedCornerShape(20.dp))
             .clickable { onClick() },
         color = containerColor,

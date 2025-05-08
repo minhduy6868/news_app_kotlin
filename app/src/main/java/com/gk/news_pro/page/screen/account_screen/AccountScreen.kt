@@ -8,13 +8,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.outlined.Call
-import androidx.compose.material.icons.outlined.ExitToApp
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,7 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,12 +28,12 @@ import com.gk.news_pro.data.model.User
 import com.gk.news_pro.data.repository.UserRepository
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(
     userRepository: UserRepository,
     onLogout: () -> Unit
 ) {
-    var darkModeEnabled by remember { mutableStateOf(false) }
     var notificationsEnabled by remember { mutableStateOf(true) }
     var user by remember { mutableStateOf<User?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -43,32 +41,58 @@ fun AccountScreen(
     // Fetch user data
     LaunchedEffect(Unit) {
         user = userRepository.getUser()
+
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.surface,
+
+
+
+    ) { innerPadding ->
         LazyColumn(
+
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(innerPadding)
+              //  .nestedScroll(scrollBehavior.nestedScrollConnection)
+                .padding(
+                    top = 24.dp, // 👈 Thêm khoảng cách từ trên cùng
+                    bottom = innerPadding.calculateBottomPadding(),
+                    start = 16.dp,
+                    end = 16.dp
+                ),
+          //  scrollBehavior = scrollBehavior,
+
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                MiniProfileHeader(user = user)
-                Spacer(modifier = Modifier.height(8.dp))
+                ProfileHeader(user = user)
+                Spacer(modifier = Modifier.height(5.dp))
             }
+
+
+
             item {
+                Text(
+                    text = "Preferences",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+                )
+
                 SettingsCard {
                     SettingsItem(
                         icon = Icons.Default.Person,
-                        title = "Setting Favorite Category",
-                        subtitle = "Manage your favorite category",
+                        title = "Favorite Categories",
+                        subtitle = "Manage your news preferences",
                         onClick = {
                             coroutineScope.launch {
-                                // Example: Update favorite topics
                                 userRepository.updateFavoriteTopics(mapOf("Tech" to 1, "Sports" to 2))
                             }
                         }
@@ -76,16 +100,14 @@ fun AccountScreen(
                     SettingsItem(
                         icon = Icons.Default.Refresh,
                         title = "Reading History",
-                        subtitle = "See what you've been reading",
-                        onClick = { /* Handle click */ },
-                        showDivider = false
+                        subtitle = "Your recently viewed articles",
+                        onClick = { /* Handle click */ }
                     )
                 }
-            }
-            item {
+
                 SettingsCard {
                     SwitchSettingsItem(
-                        icon = Icons.Outlined.ThumbUp,
+                        icon = Icons.Outlined.Notifications,
                         title = "Notifications",
                         checked = notificationsEnabled,
                         onCheckedChange = { notificationsEnabled = it },
@@ -93,27 +115,36 @@ fun AccountScreen(
                     )
                 }
             }
+
             item {
+                Text(
+                    text = "Support",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+                )
+
                 SettingsCard {
                     SettingsItem(
-                        icon = Icons.Outlined.Call,
-                        title = "Contact us",
-                        subtitle = "Contact us to ....",
+                        icon = Icons.Outlined.Email,
+                        title = "Contact Us",
+                        subtitle = "Send feedback or get help",
                         onClick = { /* Handle click */ }
                     )
                     SettingsItem(
                         icon = Icons.Outlined.Info,
                         title = "About App",
-                        subtitle = "App info and help",
+                        subtitle = "Version 1.0.0 • Privacy Policy",
                         onClick = { /* Handle click */ },
                         showDivider = false
                     )
                 }
             }
+
             item {
-                CompactSignOutButton(onClick = onLogout)
-            }
-            item {
+                SignOutButton(onClick = onLogout)
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
@@ -121,58 +152,52 @@ fun AccountScreen(
 }
 
 @Composable
-fun MiniProfileHeader(user: User?) {
+fun ProfileHeader(user: User?) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 1.dp,
-                shape = RoundedCornerShape(12.dp),
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
                 spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(64.dp)
                     .shadow(
                         elevation = 4.dp,
                         shape = CircleShape,
                         spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                     )
                     .background(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        ),
                         shape = CircleShape
                     )
-                    .padding(2.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = user?.username?.take(2)?.uppercase() ?: "NA",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                Text(
+                    text = user?.username?.take(2)?.uppercase() ?: "NA",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-                }
+                )
             }
             Column(
                 modifier = Modifier
@@ -180,19 +205,19 @@ fun MiniProfileHeader(user: User?) {
                     .padding(horizontal = 16.dp)
             ) {
                 Text(
-                    text = user?.username ?: "Guest",
-                    style = MaterialTheme.typography.titleMedium.copy(
+                    text = user?.username ?: "Guest User",
+                    style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 )
                 Text(
-                    text = user?.email ?: "No email",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
+                    text = user?.email ?: "Sign in for full access",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Normal
                     ),
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
@@ -213,7 +238,7 @@ fun SettingsCard(
             ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(
@@ -237,7 +262,7 @@ fun SettingsItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -245,12 +270,7 @@ fun SettingsItem(
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f)
-                            )
-                        )
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -276,10 +296,10 @@ fun SettingsItem(
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 13.sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
@@ -287,14 +307,14 @@ fun SettingsItem(
             Icon(
                 imageVector = Icons.Default.ArrowForward,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.size(18.dp)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
             )
         }
         if (showDivider) {
             Divider(
                 modifier = Modifier.padding(start = 72.dp, end = 16.dp),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
                 thickness = 1.dp
             )
         }
@@ -314,7 +334,7 @@ fun SwitchSettingsItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onCheckedChange(!checked) }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -322,12 +342,7 @@ fun SwitchSettingsItem(
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f)
-                            )
-                        )
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -350,20 +365,16 @@ fun SwitchSettingsItem(
             )
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                modifier = Modifier.size(width = 40.dp, height = 24.dp)
+                onCheckedChange = null,
+                modifier = Modifier
+                    .size(width = 48.dp, height = 28.dp)
+                    .clickable { onCheckedChange(!checked) }
             )
         }
         if (showDivider) {
             Divider(
                 modifier = Modifier.padding(start = 72.dp, end = 16.dp),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
                 thickness = 1.dp
             )
         }
@@ -371,36 +382,29 @@ fun SwitchSettingsItem(
 }
 
 @Composable
-fun CompactSignOutButton(onClick: () -> Unit) {
-    Surface(
+fun SignOutButton(onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() },
-        color = MaterialTheme.colorScheme.error.copy(alpha = 0.08f)
+            .padding(vertical = 8.dp),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
+        ),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.ExitToApp,
-                contentDescription = "Sign Out",
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(18.dp)
+        Icon(
+            imageVector = Icons.Outlined.ExitToApp,
+            contentDescription = "Sign Out",
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "Sign Out",
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-            Text(
-                text = "Sign Out",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.error
-                )
-            )
-        }
+        )
     }
 }
