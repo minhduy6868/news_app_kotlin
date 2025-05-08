@@ -353,6 +353,7 @@ private fun CategoryStrip(
         "business" to Color(0xFF388E3C),
         "entertainment" to Color(0xFFD81B60),
         "health" to Color(0xFFFBC02D),
+//        "science" to Color(0xFF7B1FA2),
         "science" to Color(0xFF7B1FA2),
         "sports" to Color(0xFFE64A19),
         "technology" to Color(0xFF455A64)

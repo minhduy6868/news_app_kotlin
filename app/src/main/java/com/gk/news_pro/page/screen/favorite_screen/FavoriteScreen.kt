@@ -44,9 +44,9 @@ fun FavoriteScreen(
                             text = "Tin tức yêu thích",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 24.sp
+                                fontSize = 30.sp
                             ),
-                            modifier = Modifier.padding(bottom = 16.dp)
+                            modifier = Modifier.padding(bottom = 16.dp, top = 16.dp)
                         )
                     }
                     items(favoriteNews) { news ->

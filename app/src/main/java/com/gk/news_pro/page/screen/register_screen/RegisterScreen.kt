@@ -37,9 +37,7 @@ fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
-    val viewModel: RegisterViewModel = viewModel(
-        factory = ViewModelFactory(userRepository)
-    )
+    val viewModel: RegisterViewModel = viewModel(factory = ViewModelFactory(userRepository))
     val uiState by viewModel.uiState.collectAsState()
     val username by viewModel.username.collectAsState()
     val email by viewModel.email.collectAsState()
@@ -53,157 +51,135 @@ fun RegisterScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.1f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
-                )
+                .background(Color(0xFFF9FAFB))
                 .padding(innerPadding)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Đăng ký",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontSize = 28.sp
-                    ),
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    text = "Create Account",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    textAlign = TextAlign.Center
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Create an account so you can explore all the existing news",
+                    fontSize = 14.sp,
+                    color = Color.Black.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Username
                 TextField(
                     value = username,
                     onValueChange = viewModel::updateUsername,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(6.dp, RoundedCornerShape(24.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
-                    placeholder = {
-                        Text(
-                            "Nhập tên người dùng",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    shape = RoundedCornerShape(24.dp),
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    placeholder = { Text("Username") },
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
                     colors = TextFieldDefaults.textFieldColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = Color.White,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
                         cursorColor = MaterialTheme.colorScheme.secondary
                     ),
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
+
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Email
                 TextField(
                     value = email,
                     onValueChange = viewModel::updateEmail,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(6.dp, RoundedCornerShape(24.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
-                    placeholder = {
-                        Text(
-                            "Nhập email của bạn",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    shape = RoundedCornerShape(24.dp),
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    placeholder = { Text("Email") },
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
                     colors = TextFieldDefaults.textFieldColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = Color.White,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
                         cursorColor = MaterialTheme.colorScheme.secondary
                     ),
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
+
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Password
                 TextField(
                     value = password,
                     onValueChange = viewModel::updatePassword,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(6.dp, RoundedCornerShape(24.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
-                    placeholder = {
-                        Text(
-                            "Nhập mật khẩu của bạn",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    placeholder = { Text("Password") },
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Filled.FavoriteBorder else Icons.Filled.Favorite,
-                                contentDescription = if (passwordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary
                             )
                         }
                     },
-                    shape = RoundedCornerShape(24.dp),
                     colors = TextFieldDefaults.textFieldColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = Color.White,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
                         cursorColor = MaterialTheme.colorScheme.secondary
                     ),
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
+
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Confirm Password
                 TextField(
                     value = confirmPassword,
                     onValueChange = viewModel::updateConfirmPassword,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(6.dp, RoundedCornerShape(24.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
-                    placeholder = {
-                        Text(
-                            "Xác nhận mật khẩu",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    placeholder = { Text("Confirm Password") },
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
                     visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                             Icon(
                                 imageVector = if (confirmPasswordVisible) Icons.Filled.FavoriteBorder else Icons.Filled.Favorite,
-                                contentDescription = if (confirmPasswordVisible) "Ẩn xác nhận mật khẩu" else "Hiện xác nhận mật khẩu",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary
                             )
                         }
                     },
-                    shape = RoundedCornerShape(24.dp),
                     colors = TextFieldDefaults.textFieldColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = Color.White,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
                         cursorColor = MaterialTheme.colorScheme.secondary
                     ),
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(
                         onDone = {
@@ -212,7 +188,10 @@ fun RegisterScreen(
                         }
                     )
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Sign up button
                 Button(
                     onClick = {
                         viewModel.register()
@@ -220,35 +199,31 @@ fun RegisterScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(56.dp)
+                        .shadow(6.dp, RoundedCornerShape(16.dp)),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary
+                        contentColor = Color.White
                     ),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 4.dp,
-                        pressedElevation = 6.dp
-                    )
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(
-                        "Đăng ký",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontSize = 18.sp
-                    )
+                    Text("Sign up", fontSize = 18.sp)
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Already have an account
                 Text(
-                    text = "Đã có tài khoản? Đăng nhập",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
+                    text = "Already have an account",
                     modifier = Modifier
                         .clickable { onNavigateToLogin() }
-                        .padding(8.dp)
+                        .padding(8.dp),
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontSize = 14.sp
                 )
+
+                // Optional loading state
+
                 when (uiState) {
                     is RegisterUiState.Loading -> {
                         Spacer(modifier = Modifier.height(24.dp))

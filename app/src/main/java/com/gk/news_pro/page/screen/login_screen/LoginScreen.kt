@@ -1,5 +1,6 @@
 package com.gk.news_pro.page.screen.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -29,6 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
+import com.gk.news_pro.R
+import androidx.compose.ui.layout.ContentScale
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,102 +55,120 @@ fun LoginScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.1f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
-                )
+                .background(Color.White)
                 .padding(innerPadding)
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.hroup),
+                contentDescription = null,
+                modifier = Modifier.size(200.dp)
+                    .align(Alignment.TopCenter) // <-- Quan trọng: Căn giữa phía trên
+                    .padding(top = 32.dp),
+                contentScale = ContentScale.Fit
+            )
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 25.dp),
+
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Đăng nhập",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontSize = 28.sp
-                    ),
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    text = "Login here",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Welcome back you’ve been missed!",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Email Field
                 TextField(
-                    value = "test@gmail.com",  //email,
+                    value = email,
                     onValueChange = viewModel::updateEmail,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(6.dp, RoundedCornerShape(24.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
-                    placeholder = {
-                        Text(
-                            "test@gmail.com",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    shape = RoundedCornerShape(24.dp),
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    placeholder = { Text("Email") },
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
                     colors = TextFieldDefaults.textFieldColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = Color.White,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
                         cursorColor = MaterialTheme.colorScheme.secondary
                     ),
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
+
+
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Password Field
                 TextField(
-                    value = "12345678Aa" ,   //password,
+                    value = password,
                     onValueChange = viewModel::updatePassword,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(6.dp, RoundedCornerShape(24.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
-                    placeholder = {
-                        Text(
-                            "Nhập mật khẩu của bạn",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    placeholder = { Text("Password") },
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Filled.FavoriteBorder else Icons.Filled.Favorite,
-                                contentDescription = if (passwordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary
                             )
                         }
                     },
-                    shape = RoundedCornerShape(24.dp),
                     colors = TextFieldDefaults.textFieldColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = Color.White,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
                         cursorColor = MaterialTheme.colorScheme.secondary
                     ),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            viewModel.login()
-                            focusManager.clearFocus()
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Forgot Password
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = "Forgot your password?",
+                        fontSize = 14.sp,
+                        color = Color(0xFF1E40AF),
+                        modifier = Modifier.clickable {
+                            // TODO: Handle forgot password
                         }
                     )
-                )
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // Sign in Button
                 Button(
                     onClick = {
                         viewModel.login()
@@ -156,38 +179,30 @@ fun LoginScreen(
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary
+                        contentColor = Color.White
                     ),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 4.dp,
-                        pressedElevation = 6.dp
-                    )
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(
-                        "Đăng nhập",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontSize = 18.sp
-                    )
+                    Text("Sign in", fontSize = 18.sp)
                 }
+
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Create new account
                 Text(
-                    text = "Chưa có tài khoản? Đăng ký",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    modifier = Modifier
-                        .clickable { onNavigateToRegister() }
-                        .padding(8.dp)
+                    text = "Create new account",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.clickable { onNavigateToRegister() }
                 )
+
+                // UI States
                 when (uiState) {
                     is LoginUiState.Loading -> {
                         Spacer(modifier = Modifier.height(24.dp))
                         CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(56.dp),
+                            color = Color(0xFF1E40AF),
+                            modifier = Modifier.size(48.dp),
                             strokeWidth = 4.dp
                         )
                     }
@@ -210,6 +225,7 @@ fun LoginScreen(
         }
     }
 }
+
 
 @Composable
 private fun ErrorMessage(
