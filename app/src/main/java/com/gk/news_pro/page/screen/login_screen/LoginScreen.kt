@@ -77,7 +77,7 @@ fun LoginScreen(
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
                 TextField(
-                    value = "test@gmail.com",  //email,
+                    value = email,
                     onValueChange = viewModel::updateEmail,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -104,7 +104,7 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 TextField(
-                    value = "12345678Aa" ,   //password,
+                    value = password,
                     onValueChange = viewModel::updatePassword,
                     modifier = Modifier
                         .fillMaxWidth()

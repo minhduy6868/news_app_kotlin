@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,6 +26,11 @@ fun FavoriteScreen(
     onNewsClick: (News) -> Unit = {}
 ) {
     val favoriteNews by viewModel.favoriteNews.collectAsState()
+
+    // Refresh favorite news when screen is loaded
+    LaunchedEffect(Unit) {
+        viewModel.refreshFavoriteNews()
+    }
 
     Box(
         modifier = Modifier
@@ -106,7 +112,7 @@ private fun EmptyFavoriteScreen() {
             text = "Thêm tin tức yêu thích từ trang khám phá",
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
     }
 }

@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.GeminiRepository
 import com.gk.news_pro.data.repository.NewsRepository
 import com.gk.news_pro.data.repository.UserRepository
@@ -38,15 +39,21 @@ import com.gk.news_pro.page.screen.favorite_screen.FavoriteScreen
 import com.gk.news_pro.page.screen.home_screen.HomeScreen
 import com.gk.news_pro.page.screen.home_screen.HomeViewModel
 import com.google.ai.client.generativeai.BuildConfig
+import com.google.gson.Gson
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Home : Screen("home", "Home", Icons.Filled.Home)
     object Explore : Screen("explore", "Explore", Icons.Filled.DateRange)
     object Favorite : Screen("favorite", "Favorite", Icons.Filled.Favorite)
     object Account : Screen("account", "Account", Icons.Filled.AccountCircle)
-    object NewsDetail : Screen("news_detail/{articleId}", "News Detail") {
-        fun createRoute(articleId: String) = "news_detail/$articleId"
+    object NewsDetail : Screen("news_detail/{newsJson}", "News Detail") {
+        fun createRoute(newsJson: String): String {
+            val encodedJson = URLEncoder.encode(newsJson, "UTF-8")
+            return "news_detail/$encodedJson"
+        }
     }
     object Login : Screen("login", "Đăng nhập")
     object Register : Screen("register", "Đăng ký")
@@ -63,6 +70,7 @@ fun AppNavigation() {
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
     val startDestination = if (isLoggedIn) Screen.Home.route else Screen.Login.route
+    val gson = Gson()
 
     LaunchedEffect(isLoggedIn) {
         Log.d("AppNavigation", "isLoggedIn: $isLoggedIn, startDestination: $startDestination")
@@ -133,7 +141,13 @@ fun AppNavigation() {
                         if (BuildConfig.DEBUG) {
                             Log.d("AppNavigation", "Navigating to news detail with ID: ${news.article_id}")
                         }
-                        navController.navigate(Screen.NewsDetail.createRoute(news.article_id))
+                        try {
+                            val newsJson = gson.toJson(news)
+                            Log.d("AppNavigation", "Serialized newsJson: $newsJson")
+                            navController.navigate(Screen.NewsDetail.createRoute(newsJson))
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
+                        }
                     }
                 )
             }
@@ -145,7 +159,13 @@ fun AppNavigation() {
                     userRepository = userRepository,
                     viewModel = exploreViewModel,
                     onNewsClick = { news ->
-                        navController.navigate(Screen.NewsDetail.createRoute(news.article_id))
+                        try {
+                            val newsJson = gson.toJson(news)
+                            Log.d("AppNavigation", "Serialized newsJson: $newsJson")
+                            navController.navigate(Screen.NewsDetail.createRoute(newsJson))
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
+                        }
                     }
                 )
             }
@@ -154,7 +174,13 @@ fun AppNavigation() {
                 FavoriteScreen(
                     userRepository = userRepository,
                     onNewsClick = { news ->
-                        navController.navigate(Screen.NewsDetail.createRoute(news.article_id))
+                        try {
+                            val newsJson = gson.toJson(news)
+                            Log.d("AppNavigation", "Serialized newsJson: $newsJson")
+                            navController.navigate(Screen.NewsDetail.createRoute(newsJson))
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
+                        }
                     }
                 )
             }
@@ -174,13 +200,25 @@ fun AppNavigation() {
             }
             composable(
                 route = Screen.NewsDetail.route,
-                arguments = listOf(navArgument("articleId") { type = NavType.StringType })
+                arguments = listOf(navArgument("newsJson") { type = NavType.StringType })
             ) { backStackEntry ->
-                val articleId = backStackEntry.arguments?.getString("articleId") ?: ""
-                if (BuildConfig.DEBUG) {
-                    Log.d("NewsDetailScreen", "Received articleId: $articleId")
+                val encodedNewsJson = backStackEntry.arguments?.getString("newsJson") ?: ""
+                val newsJson = try {
+                    URLDecoder.decode(encodedNewsJson, "UTF-8")
+                } catch (e: Exception) {
+                    Log.e("NewsDetailScreen", "Error decoding newsJson: ${e.message}", e)
+                    ""
                 }
-                val news = viewModel.getNewsById(articleId)
+                val news = try {
+                    Log.d("NewsDetailScreen", "Deserializing newsJson: $newsJson")
+                    gson.fromJson(newsJson, News::class.java)
+                } catch (e: Exception) {
+                    Log.e("NewsDetailScreen", "Error deserializing news: ${e.message}", e)
+                    null
+                }
+                if (BuildConfig.DEBUG) {
+                    Log.d("NewsDetailScreen", "Received news: ${news?.title ?: "Not found"}")
+                }
                 if (news != null) {
                     NewsDetailScreen(
                         navController = navController,
