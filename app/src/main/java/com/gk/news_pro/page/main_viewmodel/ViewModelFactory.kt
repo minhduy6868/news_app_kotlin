@@ -3,12 +3,14 @@ package com.gk.news_pro.page.main_viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.gk.news_pro.data.repository.NewsRepository
+import com.gk.news_pro.data.repository.RadioRepository
 import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.screen.auth.LoginViewModel
 import com.gk.news_pro.page.screen.auth.RegisterViewModel
 import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
 import com.gk.news_pro.page.screen.favorite_screen.FavoriteViewModel
 import com.gk.news_pro.page.screen.home_screen.HomeViewModel
+import com.gk.news_pro.page.screen.radio_screen.RadioViewModel
 
 class ViewModelFactory(
     private val repositories: Any
@@ -17,20 +19,53 @@ class ViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> {
-                HomeViewModel(repositories as NewsRepository) as T
+                if (repositories is NewsRepository) {
+                    HomeViewModel(repositories) as T
+                } else {
+                    throw IllegalArgumentException("Repository must be NewsRepository for HomeViewModel")
+                }
             }
             modelClass.isAssignableFrom(ExploreViewModel::class.java) -> {
-                val (newsRepo, userRepo) = repositories as List<Any>
-                ExploreViewModel(newsRepo as NewsRepository, userRepo as UserRepository) as T
+                if (repositories is List<*> && repositories.size >= 2 &&
+                    repositories[0] is NewsRepository && repositories[1] is UserRepository) {
+                    ExploreViewModel(repositories[0] as NewsRepository, repositories[1] as UserRepository) as T
+                } else {
+                    throw IllegalArgumentException("Repositories list must contain NewsRepository and UserRepository for ExploreViewModel")
+                }
             }
+            modelClass.isAssignableFrom(RadioViewModel::class.java) -> {
+                if (repositories is List<*> && repositories.size >= 2 &&
+                    repositories[0] is RadioRepository && repositories[1] is UserRepository) {
+                    RadioViewModel(repositories[0] as RadioRepository, repositories[1] as UserRepository) as T
+                } else if (repositories is UserRepository) {
+                    // Allow creating RadioViewModel with just UserRepository for FavoriteScreen
+                    val radioRepo = RadioRepository() // Create a default RadioRepository
+                    RadioViewModel(radioRepo, repositories) as T
+                } else {
+                    throw IllegalArgumentException("Invalid repositories for RadioViewModel")
+                }
+            }
+
             modelClass.isAssignableFrom(LoginViewModel::class.java) -> {
-                LoginViewModel(repositories as UserRepository) as T
+                if (repositories is UserRepository) {
+                    LoginViewModel(repositories) as T
+                } else {
+                    throw IllegalArgumentException("Repository must be UserRepository for LoginViewModel")
+                }
             }
             modelClass.isAssignableFrom(RegisterViewModel::class.java) -> {
-                RegisterViewModel(repositories as UserRepository) as T
+                if (repositories is UserRepository) {
+                    RegisterViewModel(repositories) as T
+                } else {
+                    throw IllegalArgumentException("Repository must be UserRepository for RegisterViewModel")
+                }
             }
             modelClass.isAssignableFrom(FavoriteViewModel::class.java) -> {
-                FavoriteViewModel(repositories as UserRepository) as T
+                if (repositories is UserRepository) {
+                    FavoriteViewModel(repositories) as T
+                } else {
+                    throw IllegalArgumentException("Repository must be UserRepository for FavoriteViewModel")
+                }
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

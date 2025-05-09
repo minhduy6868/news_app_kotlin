@@ -1,9 +1,10 @@
-
+package com.gk.news_pro.data.repository
 
 import android.util.Log
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.gk.news_pro.data.model.News
+import com.gk.news_pro.data.model.RadioStation
 import com.gk.news_pro.data.model.User
 import kotlinx.coroutines.tasks.await
 
@@ -61,7 +62,7 @@ class FirebaseUserService {
             password?.let { updates["password"] = it }
             if (updates.isNotEmpty()) {
                 usersRef.child(uid).updateChildren(updates).await()
-                Log.d(TAG, "updateUser: Successfully updated user $uid")
+                Log.d(TAG, "updateUser: Successfully UPDATED user $uid")
             }
         } catch (e: Exception) {
             Log.e(TAG, "updateUser: Failed to update user $uid: ${e.message}", e)
@@ -116,6 +117,7 @@ class FirebaseUserService {
             return emptyList()
         }
     }
+
     suspend fun removeFavoriteNews(uid: String, newsId: String) {
         try {
             usersRef.child(uid)
@@ -126,6 +128,58 @@ class FirebaseUserService {
             Log.d(TAG, "removeFavoriteNews: Successfully removed news $newsId for user $uid")
         } catch (e: Exception) {
             Log.e(TAG, "removeFavoriteNews: Failed to remove news $newsId for user $uid: ${e.message}", e)
+            throw e
+        }
+    }
+
+    suspend fun addFavoriteRadioStation(uid: String, station: RadioStation) {
+        try {
+            usersRef.child(uid)
+                .child("favoriteRadioStations")
+                .child(station.stationuuid)
+                .setValue(station)
+                .await()
+            Log.d(TAG, "addFavoriteRadioStation: Successfully added station ${station.stationuuid} for user $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "addFavoriteRadioStation: Failed to add station for user $uid: ${e.message}", e)
+            throw e
+        }
+    }
+
+    suspend fun getFavoriteRadioStations(uid: String): List<RadioStation> {
+        try {
+            val snapshot = usersRef.child(uid).child("favoriteRadioStations").get().await()
+            val stationList = mutableListOf<RadioStation>()
+            snapshot.children.forEach { child ->
+                try {
+                    val station = child.getValue(RadioStation::class.java)
+                    if (station != null) {
+                        stationList.add(station)
+                    } else {
+                        Log.w(TAG, "getFavoriteRadioStations: Failed to parse station for key ${child.key}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "getFavoriteRadioStations: Error parsing station for key ${child.key}: ${e.message}", e)
+                }
+            }
+            Log.d(TAG, "getFavoriteRadioStations: Retrieved ${stationList.size} favorite stations for user $uid")
+            return stationList
+        } catch (e: Exception) {
+            Log.e(TAG, "getFavoriteRadioStations: Failed to retrieve favorite stations for user $uid: ${e.message}", e)
+            return emptyList()
+        }
+    }
+
+    suspend fun removeFavoriteRadioStation(uid: String, stationId: String) {
+        try {
+            usersRef.child(uid)
+                .child("favoriteRadioStations")
+                .child(stationId)
+                .removeValue()
+                .await()
+            Log.d(TAG, "removeFavoriteRadioStation: Successfully removed station $stationId for user $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "removeFavoriteRadioStation: Failed to remove station $stationId for user $uid: ${e.message}", e)
             throw e
         }
     }

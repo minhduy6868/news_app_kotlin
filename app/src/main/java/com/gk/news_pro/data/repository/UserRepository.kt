@@ -1,8 +1,8 @@
 package com.gk.news_pro.data.repository
 
-import FirebaseUserService
 import android.util.Log
 import com.gk.news_pro.data.model.News
+import com.gk.news_pro.data.model.RadioStation
 import com.gk.news_pro.data.model.User
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
@@ -152,6 +152,50 @@ class UserRepository(
         } catch (e: Exception) {
             Log.e(TAG, "removeFavoriteNews: Failed to remove news: ${e.message}", e)
             throw Exception("Xóa tin tức yêu thích thất bại: ${e.message}")
+        }
+    }
+
+    suspend fun saveFavoriteRadioStation(station: RadioStation) {
+        val firebaseUser = auth.currentUser ?: run {
+            Log.e(TAG, "saveFavoriteRadioStation: No user logged in")
+            throw Exception("Chưa đăng nhập")
+        }
+        try {
+            firebaseService.addFavoriteRadioStation(firebaseUser.uid, station)
+            Log.d(TAG, "saveFavoriteRadioStation: Successfully saved station ${station.stationuuid}")
+        } catch (e: Exception) {
+            Log.e(TAG, "saveFavoriteRadioStation: Failed to save station: ${e.message}")
+            throw e
+        }
+    }
+
+    suspend fun getFavoriteRadioStations(): List<RadioStation> {
+        val firebaseUser = auth.currentUser ?: run {
+            Log.e(TAG, "getFavoriteRadioStations: No user logged in")
+            throw Exception("Chưa đăng nhập")
+        }
+        try {
+            val stationList = firebaseService.getFavoriteRadioStations(firebaseUser.uid)
+            Log.d(TAG, "getFavoriteRadioStations: Retrieved ${stationList.size} stations")
+            return stationList
+        } catch (e: Exception) {
+            Log.e(TAG, "getFavoriteRadioStations: Failed to retrieve stations: ${e.message}")
+            throw e
+        }
+    }
+
+    suspend fun removeFavoriteRadioStation(stationId: String) {
+        val firebaseUser = auth.currentUser ?: run {
+            Log.e(TAG, "removeFavoriteRadioStation: No user logged in")
+            throw Exception("Chưa đăng nhập")
+        }
+        try {
+            Log.d(TAG, "removeFavoriteRadioStation: Removing station $stationId for user ${firebaseUser.uid}")
+            firebaseService.removeFavoriteRadioStation(firebaseUser.uid, stationId)
+            Log.d(TAG, "removeFavoriteRadioStation: Station removed")
+        } catch (e: Exception) {
+            Log.e(TAG, "removeFavoriteRadioStation: Failed to remove station: ${e.message}", e)
+            throw Exception("Xóa đài radio yêu thích thất bại: ${e.message}")
         }
     }
 
