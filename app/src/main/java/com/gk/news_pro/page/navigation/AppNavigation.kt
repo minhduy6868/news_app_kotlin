@@ -1,5 +1,6 @@
 package com.gk.news_pro.page.navigation
 
+import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -80,7 +81,7 @@ fun AppNavigation() {
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
     val startDestination = if (isLoggedIn) Screen.Radio.route else Screen.Login.route
-    val context = LocalContext.current
+    val context = LocalContext.current // Lấy Context từ LocalContext
     val gson = Gson()
 
     LaunchedEffect(Unit) {
@@ -116,170 +117,173 @@ fun AppNavigation() {
             }
         }
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+        Box(modifier = Modifier
+        .fillMaxSize()
+        .padding(innerPadding)
         ) {
-            NavHost(
-                navController = navController,
-                startDestination = startDestination,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                composable(Screen.Login.route) {
-                    LoginScreen(
-                        userRepository = userRepository,
-                        onLoginSuccess = {
-                            Log.d("AppNavigation", "Login successful, navigating to Radio")
-                            navController.navigate(Screen.Radio.route) {
-                                popUpTo(Screen.Login.route) { inclusive = true }
-                            }
-                        },
-                        onNavigateToRegister = {
-                            navController.navigate(Screen.Register.route)
-                        }
-                    )
-                }
-                composable(Screen.Register.route) {
-                    RegisterScreen(
-                        userRepository = userRepository,
-                        onRegisterSuccess = {
-                            Log.d("AppNavigation", "Register successful, navigating to Login")
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(Screen.Register.route) { inclusive = true }
-                            }
-                        },
-                        onNavigateToLogin = {
-                            navController.popBackStack()
-                        }
-                    )
-                }
-                composable(Screen.Radio.route) {
-                    RadioScreen(
-                        userRepository = userRepository,
-                        viewModel = radioViewModel,
-                        onStationClick = {
-                            Log.d("AppNavigation", "Radio station clicked: ${it.name}")
-                        }
-                    )
-                }
-                composable(Screen.Explore.route) {
-                    val exploreViewModel: ExploreViewModel = viewModel(
-                        factory = ViewModelFactory(listOf(newsRepository, userRepository))
-                    )
-                    ExploreScreen(
-                        userRepository = userRepository,
-                        viewModel = exploreViewModel,
-                        onNewsClick = { news ->
-                            try {
-                                val newsJson = gson.toJson(news)
-                                Log.d("AppNavigation", "Serialized newsJson: $newsJson")
-                                navController.navigate(Screen.NewsDetail.createRoute(newsJson))
-                            } catch (e: Exception) {
-                                Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
-                            }
-                        }
-                    )
-                }
-                composable(Screen.Favorite.route) {
-                    Log.d("AppNavigation", "Navigating to FavoriteScreen")
-                    FavoriteScreen(
-                        userRepository = userRepository,
-                        onNewsClick = { news ->
-                            try {
-                                val newsJson = gson.toJson(news)
-                                Log.d("AppNavigation", "Serialized newsJson: $newsJson")
-                                navController.navigate(Screen.NewsDetail.createRoute(newsJson))
-                            } catch (e: Exception) {
-                                Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
-                            }
-                        }
-                    )
-                }
-                composable(Screen.Account.route) {
-                    AccountScreen(
-                        userRepository = userRepository,
-                        onLogout = {
-                            coroutineScope.launch {
-                                userRepository.signOut()
-                                Log.d("AppNavigation", "User logged out, navigating to Login")
-                                navController.navigate(Screen.Login.route) {
-                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                                }
-                            }
-                        }
-                    )
-                }
-                composable(
-                    route = Screen.NewsDetail.route,
-                    arguments = listOf(navArgument("newsJson") { type = NavType.StringType })
-                ) { backStackEntry ->
-                    val encodedNewsJson = backStackEntry.arguments?.getString("newsJson") ?: ""
-                    val newsJson = try {
-                        URLDecoder.decode(encodedNewsJson, "UTF-8")
-                    } catch (e: Exception) {
-                        Log.e("NewsDetailScreen", "Error decoding newsJson: ${e.message}", e)
-                        ""
-                    }
-                    val news = try {
-                        Log.d("NewsDetailScreen", "Deserializing newsJson: $newsJson")
-                        gson.fromJson(newsJson, News::class.java)
-                    } catch (e: Exception) {
-                        Log.e("NewsDetailScreen", "Error deserializing news: ${e.message}", e)
-                        null
-                    }
-                    if (BuildConfig.DEBUG) {
-                        Log.d("NewsDetailScreen", "Received news: ${news?.title ?: "Not found"}")
-                    }
-                    if (news != null) {
-                        NewsDetailScreen(
-                            navController = navController,
-                            news = news,
-                            geminiRepository = geminiRepository
-                        )
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "Không tìm thấy bài viết",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = { navController.navigate(Screen.Radio.route) },
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Quay lại Radio")
-                            }
-                        }
-                    }
-                }
-            }
-
-            val playbackState by MediaPlayerManager.getPlaybackState()?.collectAsState() ?: return@Box
-            val playingStation by radioViewModel.playingStation.collectAsState()
-
-            if (playingStation != null && playbackState != PlaybackState.Idle) {
-                MiniPlayer(
-                    viewModel = radioViewModel,
-                    onStationClick = {
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            composable(Screen.Login.route) {
+                LoginScreen(
+                    userRepository = userRepository,
+                    onLoginSuccess = {
+                        Log.d("AppNavigation", "Login successful, navigating to Radio")
                         navController.navigate(Screen.Radio.route) {
-                            popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                            launchSingleTop = true
+                            popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp)
+                    onNavigateToRegister = {
+                        navController.navigate(Screen.Register.route)
+                    }
                 )
             }
+            composable(Screen.Register.route) {
+                RegisterScreen(
+                    userRepository = userRepository,
+                    onRegisterSuccess = {
+                        Log.d("AppNavigation", "Register successful, navigating to Login")
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Register.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToLogin = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable(Screen.Radio.route) {
+                RadioScreen(
+                    userRepository = userRepository,
+                    viewModel = radioViewModel,
+                    onStationClick = {
+                        Log.d("AppNavigation", "Radio station clicked: ${it.name}")
+                    }
+                )
+            }
+            composable(Screen.Explore.route) {
+                val exploreViewModel: ExploreViewModel = viewModel(
+                    factory = ViewModelFactory(
+                        repositories = listOf(newsRepository, userRepository),
+                        context = context // Truyền Context vào ViewModelFactory
+                    )
+                )
+                ExploreScreen(
+                    userRepository = userRepository,
+                    context = context, // Truyền Context vào ExploreScreen
+                    viewModel = exploreViewModel,
+                    onNewsClick = { news ->
+                        try {
+                            val newsJson = gson.toJson(news)
+                            Log.d("AppNavigation", "Serialized newsJson: $newsJson")
+                            navController.navigate(Screen.NewsDetail.createRoute(newsJson))
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
+                        }
+                    }
+                )
+            }
+            composable(Screen.Favorite.route) {
+                Log.d("AppNavigation", "Navigating to FavoriteScreen")
+                FavoriteScreen(
+                    userRepository = userRepository,
+                    onNewsClick = { news ->
+                        try {
+                            val newsJson = gson.toJson(news)
+                            Log.d("AppNavigation", "Serialized newsJson: $newsJson")
+                            navController.navigate(Screen.NewsDetail.createRoute(newsJson))
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
+                        }
+                    }
+                )
+            }
+            composable(Screen.Account.route) {
+                AccountScreen(
+                    userRepository = userRepository,
+                    onLogout = {
+                        coroutineScope.launch {
+                            userRepository.signOut()
+                            Log.d("AppNavigation", "User logged out, navigating to Login")
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
+            composable(
+                route = Screen.NewsDetail.route,
+                arguments = listOf(navArgument("newsJson") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val encodedNewsJson = backStackEntry.arguments?.getString("newsJson") ?: ""
+                val newsJson = try {
+                    URLDecoder.decode(encodedNewsJson, "UTF-8")
+                } catch (e: Exception) {
+                    Log.e("NewsDetailScreen", "Error decoding newsJson: ${e.message}", e)
+                    ""
+                }
+                val news = try {
+                    Log.d("NewsDetailScreen", "Deserializing newsJson: $newsJson")
+                    gson.fromJson(newsJson, News::class.java)
+                } catch (e: Exception) {
+                    Log.e("NewsDetailScreen", "Error deserializing news: ${e.message}", e)
+                    null
+                }
+                if (BuildConfig.DEBUG) {
+                    Log.d("NewsDetailScreen", "Received news: ${news?.title ?: "Not found"}")
+                }
+                if (news != null) {
+                    NewsDetailScreen(
+                        navController = navController,
+                        news = news,
+                        geminiRepository = geminiRepository
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Không tìm thấy bài viết",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { navController.navigate(Screen.Radio.route) },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Quay lại Radio")
+                        }
+                    }
+                }
+            }
         }
+
+        val playbackState by MediaPlayerManager.getPlaybackState()?.collectAsState() ?: return@Box
+        val playingStation by radioViewModel.playingStation.collectAsState()
+
+        if (playingStation != null && playbackState != PlaybackState.Idle) {
+            MiniPlayer(
+                viewModel = radioViewModel,
+                onStationClick = {
+                    navController.navigate(Screen.Radio.route) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            )
+        }
+    }
     }
 }
 

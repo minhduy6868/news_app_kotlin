@@ -4,15 +4,19 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gk.news_pro.data.model.News
+import com.gk.news_pro.data.repository.GeminiRepository
+import com.gk.news_pro.data.repository.HeyGenRepository
 import com.gk.news_pro.data.repository.NewsRepository
 import com.gk.news_pro.data.repository.UserRepository
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 
 class ExploreViewModel(
     private val newsRepository: NewsRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val geminiRepository: GeminiRepository = GeminiRepository(),
+    private val heyGenRepository: HeyGenRepository
 ) : ViewModel() {
 
     private val _newsState = MutableStateFlow<ExploreUiState>(ExploreUiState.Loading)
@@ -30,6 +34,12 @@ class ExploreViewModel(
     private val _bookmarkedNews = MutableStateFlow<List<News>>(emptyList())
     val bookmarkedNews: StateFlow<List<News>> = _bookmarkedNews
 
+    private val _videoScriptState = MutableStateFlow<VideoScriptState>(VideoScriptState.Idle)
+    val videoScriptState: StateFlow<VideoScriptState> = _videoScriptState
+
+    private val _latestVideoUrl = MutableStateFlow<String?>(null)
+    val latestVideoUrl: StateFlow<String?> = _latestVideoUrl
+
     val categories = listOf(
         "general", "business", "entertainment", "health",
         "science", "sports", "technology"
@@ -39,6 +49,55 @@ class ExploreViewModel(
         fetchGeneralNews()
         fetchTrendingNews()
         loadBookmarkedNews()
+        checkPendingVideo()
+    }
+
+    private fun checkPendingVideo() {
+        viewModelScope.launch {
+            val videoId = heyGenRepository.getSavedVideoId()
+            val creationTime = heyGenRepository.getCreationTime()
+            if (videoId != null) {
+                val elapsedTime = System.currentTimeMillis() - creationTime
+                val fiveMinutes = 5 * 60 * 1000L
+                Log.d("ExploreViewModel", "Checking pending video: video_id=$videoId, elapsed=$elapsedTime ms")
+                if (elapsedTime >= fiveMinutes) {
+                    checkVideoStatus(videoId)
+                } else {
+                    _videoScriptState.value = VideoScriptState.Processing(
+                        script = _videoScriptState.value.let { if (it is VideoScriptState.Processing) it.script else "" }
+                    )
+                }
+            } else {
+                Log.d("ExploreViewModel", "No pending video found")
+            }
+        }
+    }
+
+    private suspend fun checkVideoStatus(videoId: String) {
+        Log.d("ExploreViewModel", "Checking video status for video_id=$videoId")
+        val result = heyGenRepository.checkVideoStatus(videoId)
+        when {
+            !result.startsWith("Lỗi") && result != "Đang xử lý" -> {
+                _latestVideoUrl.value = result
+                _videoScriptState.value = VideoScriptState.Success(
+                    script = _videoScriptState.value.let { if (it is VideoScriptState.Processing) it.script else "" },
+                    videoUrl = result
+                )
+                heyGenRepository.clearVideoId()
+                Log.d("ExploreViewModel", "Video completed: $result")
+            }
+            result == "Đang xử lý" -> {
+                _videoScriptState.value = VideoScriptState.Processing(
+                    script = _videoScriptState.value.let { if (it is VideoScriptState.Processing) it.script else "" }
+                )
+                Log.d("ExploreViewModel", "Video still processing for video_id: $videoId")
+            }
+            else -> {
+                _videoScriptState.value = VideoScriptState.Error(result)
+                heyGenRepository.clearVideoId()
+                Log.e("ExploreViewModel", "Error checking video status: $result")
+            }
+        }
     }
 
     private fun loadBookmarkedNews() {
@@ -166,10 +225,61 @@ class ExploreViewModel(
             }
         }
     }
+
+    fun generateNewsVideo(newsList: List<News>) {
+        if (newsList.isEmpty()) {
+            _videoScriptState.value = VideoScriptState.Error("Không có tin tức để tạo video")
+            Log.e("ExploreViewModel", "News list is empty")
+            return
+        }
+        _videoScriptState.value = VideoScriptState.Loading
+        viewModelScope.launch {
+            try {
+                Log.d("ExploreViewModel", "Generating script for ${newsList.size} news items")
+                val script = geminiRepository.generateNewsVideoScript(newsList)
+                Log.d("ExploreViewModel", "Generated script: $script")
+                if (script.isBlank() || script.startsWith("Lỗi")) {
+                    _videoScriptState.value = VideoScriptState.Error("Kịch bản không hợp lệ: $script")
+                    Log.e("ExploreViewModel", "Invalid script: $script")
+                    return@launch
+                }
+                _videoScriptState.value = VideoScriptState.Processing(script)
+                heyGenRepository.clearVideoId()
+                val result = heyGenRepository.generateVideo(script)
+                when (result) {
+                    is HeyGenRepository.Result.Success -> {
+                        _videoScriptState.value = VideoScriptState.Processing(result.script)
+                        Log.d("ExploreViewModel", "Video creation started, video_id: ${result.videoId}")
+                    }
+                    is HeyGenRepository.Result.Error -> {
+                        _videoScriptState.value = VideoScriptState.Error(result.message)
+                        Log.e("ExploreViewModel", "Video generation failed: ${result.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                _videoScriptState.value = VideoScriptState.Error(e.message ?: "Lỗi khi tạo video")
+                Log.e("ExploreViewModel", "Error generating video: ${e.message}", e)
+            }
+        }
+    }
+
+    fun clearLatestVideo() {
+        _latestVideoUrl.value = null
+        heyGenRepository.clearVideoId()
+        Log.d("ExploreViewModel", "Cleared latest video URL")
+    }
 }
 
 sealed class ExploreUiState {
     object Loading : ExploreUiState()
     data class Success(val news: List<News>) : ExploreUiState()
     data class Error(val message: String) : ExploreUiState()
+}
+
+sealed class VideoScriptState {
+    object Idle : VideoScriptState()
+    object Loading : VideoScriptState()
+    data class Processing(val script: String) : VideoScriptState()
+    data class Success(val script: String, val videoUrl: String) : VideoScriptState()
+    data class Error(val message: String) : VideoScriptState()
 }

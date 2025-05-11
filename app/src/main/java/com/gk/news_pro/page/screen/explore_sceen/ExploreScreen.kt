@@ -1,5 +1,7 @@
 package com.gk.news_pro.page.screen.explore_screen
 
+import android.content.Context
+import android.webkit.WebView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -18,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -25,7 +28,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.NewsRepository
@@ -43,6 +46,8 @@ import com.gk.news_pro.page.components.NewsCard
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
 import com.gk.news_pro.page.screen.explore_sceen.ExploreUiState
 import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
+import com.gk.news_pro.page.screen.explore_sceen.VideoScriptState
+import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -50,8 +55,12 @@ import java.util.Locale
 @Composable
 fun ExploreScreen(
     userRepository: UserRepository,
+    context: Context,
     viewModel: ExploreViewModel = viewModel(
-        factory = ViewModelFactory(listOf(NewsRepository(), userRepository))
+        factory = ViewModelFactory(
+            repositories = listOf(NewsRepository(), userRepository),
+            context = context
+        )
     ),
     onNewsClick: (News) -> Unit = {},
     onBookmarkClick: (News, Boolean) -> Unit = { _, _ -> }
@@ -62,7 +71,10 @@ fun ExploreScreen(
     val categories = viewModel.categories
     val trendingNews by viewModel.trendingNews.collectAsState()
     val bookmarkedNews by viewModel.bookmarkedNews.collectAsState()
+    val videoScriptState by viewModel.videoScriptState.collectAsState()
+    val latestVideoUrl by viewModel.latestVideoUrl.collectAsState()
     var showLoginPrompt by remember { mutableStateOf(false) }
+    var showVideoDialog by remember { mutableStateOf(false) }
 
     Scaffold { innerPadding ->
         Box(
@@ -83,6 +95,81 @@ fun ExploreScreen(
                     .padding(innerPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Video player
+                latestVideoUrl?.let { videoUrl ->
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(240.dp)
+                                .padding(horizontal = 16.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    WebView(ctx).apply {
+                                        settings.javaScriptEnabled = true
+                                        settings.mediaPlaybackRequiresUserGesture = false
+                                        loadData(
+                                            """
+                                            <html>
+                                                <body style="margin:0;padding:0;">
+                                                    <video controls width="100%" height="100%">
+                                                        <source src="$videoUrl" type="video/mp4">
+                                                    </video>
+                                                </body>
+                                            </html>
+                                            """.trimIndent(),
+                                            "text/html",
+                                            "UTF-8"
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            IconButton(
+                                onClick = { viewModel.clearLatestVideo() },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .size(32.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                        RoundedCornerShape(16.dp)
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Xóa video",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Processing notification
+                if (videoScriptState is VideoScriptState.Processing) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = "Video bản tin đang được tạo, sẽ sẵn sàng sau khoảng 5 phút.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
                 item {
                     SearchBar(
                         query = searchQuery,
@@ -90,6 +177,52 @@ fun ExploreScreen(
                         onSearch = { viewModel.searchNews(searchQuery) },
                         onClear = viewModel::clearSearch
                     )
+                }
+
+                item {
+                    Button(
+                        onClick = {
+                            val newsList = when {
+                                searchQuery.isNotEmpty() && newsState is ExploreUiState.Success ->
+                                    (newsState as ExploreUiState.Success).news
+                                else -> trendingNews
+                            }
+                            if (newsList.isEmpty()) {
+                                Log.e("ExploreScreen", "News list is empty, cannot generate video")
+                                showVideoDialog = true
+                                viewModel.generateNewsVideo(newsList)
+                            } else {
+                                Log.d("ExploreScreen", "Generating video with ${newsList.size} news items")
+                                viewModel.generateNewsVideo(newsList)
+                                showVideoDialog = true
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Tạo video bản tin",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Tạo video bản tin nhanh",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
                 }
 
                 if (searchQuery.isEmpty()) {
@@ -205,6 +338,116 @@ fun ExploreScreen(
                 }
             }
 
+            if (showVideoDialog) {
+                AlertDialog(
+                    onDismissRequest = { showVideoDialog = false },
+                    title = { Text("Kết quả bản tin video", style = MaterialTheme.typography.titleMedium) },
+                    text = {
+                        when (videoScriptState) {
+                            is VideoScriptState.Loading -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                    Text(
+                                        "Đang tạo kịch bản...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(top = 16.dp)
+                                    )
+                                }
+                            }
+                            is VideoScriptState.Processing -> {
+                                val script = (videoScriptState as VideoScriptState.Processing).script
+                                Column {
+                                    Text(
+                                        "Kịch bản bản tin:",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        script,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                    Text(
+                                        "Video đang được tạo, sẽ sẵn sàng sau khoảng 5 phút.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                            }
+                            is VideoScriptState.Success -> {
+                                val (script, videoUrl) = videoScriptState as VideoScriptState.Success
+                                Column {
+                                    Text(
+                                        "Kịch bản bản tin:",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        script,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                    Text(
+                                        "Video URL:",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        videoUrl,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                            }
+                            is VideoScriptState.Error -> {
+                                Column {
+                                    Text(
+                                        "Lỗi:",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    Text(
+                                        (videoScriptState as VideoScriptState.Error).message,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    TextButton(
+                                        onClick = {
+                                            val newsList = when {
+                                                searchQuery.isNotEmpty() && newsState is ExploreUiState.Success ->
+                                                    (newsState as ExploreUiState.Success).news
+                                                else -> trendingNews
+                                            }
+                                            viewModel.generateNewsVideo(newsList)
+                                        }
+                                    ) {
+                                        Text("Thử lại")
+                                    }
+                                }
+                            }
+                            is VideoScriptState.Idle -> {
+                                Text(
+                                    "Đang chờ xử lý...",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showVideoDialog = false }) {
+                            Text("Đóng")
+                        }
+                    }
+                )
+            }
+
             if (showLoginPrompt) {
                 AlertDialog(
                     onDismissRequest = { showLoginPrompt = false },
@@ -242,10 +485,8 @@ private fun SearchBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 4.dp)
-                .height(48.dp) // Giảm chiều cao từ 56.dp
-                .shadow(4.dp, RoundedCornerShape(20.dp))
-                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
-            ,
+                .height(48.dp)
+                .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
             placeholder = {
                 Text(
                     "Explore news, topics, or sources...",
@@ -406,7 +647,6 @@ private fun CategoryPill(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
             .height(38.dp)
-            .shadow(if (isSelected) 4.dp else 0.dp, RoundedCornerShape(20.dp))
             .clickable { onClick() },
         color = containerColor,
         shape = RoundedCornerShape(20.dp),
@@ -488,7 +728,7 @@ private fun ErrorMessage(
             )
         ) {
             Text(
-                "Try Again",
+                "Thử lại",
                 style = MaterialTheme.typography.labelLarge,
                 fontSize = 16.sp
             )
@@ -507,13 +747,13 @@ private fun EmptySearchResults(query: String) {
     ) {
         Icon(
             imageVector = Icons.Default.Search,
-            contentDescription = "No results",
+            contentDescription = "Không có kết quả",
             modifier = Modifier.size(56.dp),
             tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No results found for",
+            text = "Không tìm thấy kết quả cho",
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
@@ -528,7 +768,7 @@ private fun EmptySearchResults(query: String) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Try different keywords or topics",
+            text = "Hãy thử các từ khóa hoặc chủ đề khác",
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         )
@@ -542,10 +782,10 @@ fun formatRelativeTime(dateString: String): String {
         val now = System.currentTimeMillis()
         val diff = now - date.time
         when {
-            diff < 60 * 1000 -> "Just now"
-            diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} min ago"
-            diff < 24 * 60 * 60 * 1000 -> "${diff / (60 * 60 * 1000)} hours ago"
-            diff < 48 * 60 * 60 * 1000 -> "Yesterday"
+            diff < 60 * 1000 -> "Vừa xong"
+            diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} phút trước"
+            diff < 24 * 60 * 60 * 1000 -> "${diff / (60 * 60 * 1000)} giờ trước"
+            diff < 48 * 60 * 60 * 1000 -> "Hôm qua"
             else -> SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(date)
         }
     } catch (e: Exception) {
