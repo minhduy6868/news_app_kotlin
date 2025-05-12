@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.gk.news_pro.page.navigation.AppNavigation
+import com.gk.news_pro.page.screen.splash_screen.SplashScreen
 import com.gk.news_pro.ui.theme.NewsProTheme
 
 class MainActivity : ComponentActivity() {
@@ -23,16 +24,29 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    var showOnboarding = remember { mutableStateOf(true) }
+                    val showSplash = remember { mutableStateOf(true) }
+                    val showOnboarding = remember { mutableStateOf(true) }
 
-                    if (showOnboarding.value) {
-                        OnBoardingScreen(onFinish = {
-                            showOnboarding.value = false
-                        })
-                    } else {
-                        AppNavigation()
+                    when {
+                        showSplash.value -> {
+                            SplashScreen(
+                                onSplashFinish = {
+                                    showSplash.value = false
+                                }
+                            )
+                        }
+                        showOnboarding.value -> {
+                            OnBoardingScreen(onFinish = {
+                                showOnboarding.value = false
+                            })
+                        }
+                        else -> {
+                            AppNavigation()
+                        }
                     }
                 }
+
             }
         }
-    }}
+    }
+}
