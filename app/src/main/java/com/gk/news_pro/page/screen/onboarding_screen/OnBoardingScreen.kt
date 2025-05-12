@@ -28,7 +28,9 @@ import com.loc.newsapp.screen.onboarding_screen.components.PageIndicator
 import kotlinx.coroutines.launch
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun OnBoardingScreen() {
+fun OnBoardingScreen(
+    onFinish: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize()) {
         val pagerState = rememberPagerState(initialPage = 0) {
             pages.size
@@ -84,6 +86,7 @@ fun OnBoardingScreen() {
                         scope.launch {
                             if (pagerState.currentPage == pages.size - 1) {
                                 // Chuyển đến màn hình Home
+                                onFinish()
                             } else {
                                 pagerState.animateScrollToPage(
                                     page = pagerState.currentPage + 1
