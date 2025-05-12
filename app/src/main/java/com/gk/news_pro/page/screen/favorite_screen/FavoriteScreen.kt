@@ -53,6 +53,7 @@ fun FavoriteScreen(
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("News", "Radio")
 
+<<<<<<< HEAD
     // Refresh favorite news and radio stations when screen is loaded
     LaunchedEffect(Unit) {
         //favoriteViewModel.refreshFavoriteNews()
@@ -67,6 +68,21 @@ fun FavoriteScreen(
             Log.e("FavoriteScreen", "Error binding service: ${e.message}", e)
             scope.launch {
                 snackbarHostState.showSnackbar("Failed to initialize playback service")
+=======
+    // Refresh favorite news when screen is loaded
+    LaunchedEffect(Unit) {
+        viewModel.refreshFavoriteNews()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        when {
+            favoriteNews.isEmpty() -> {
+                EmptyFavoriteScreen()
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
             }
         }
     }

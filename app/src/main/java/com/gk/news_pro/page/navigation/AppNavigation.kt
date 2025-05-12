@@ -51,10 +51,15 @@ import com.gk.news_pro.utils.MediaPlayerManager
 import com.google.ai.client.generativeai.BuildConfig
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
+<<<<<<< HEAD
 import okhttp3.Route
 import java.net.URLDecoder
 import java.net.URLEncoder
 
+=======
+import java.net.URLDecoder
+import java.net.URLEncoder
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Radio : Screen("radio", "Radio", Icons.Filled.PlayArrow)
@@ -90,6 +95,7 @@ fun AppNavigation(
     )
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
+<<<<<<< HEAD
    // val startDestination = if (isLoggedIn) Screen.Radio.route else Screen.Login.route
     val context = LocalContext.current // Lấy Context từ LocalContext
     val gson = Gson()
@@ -98,6 +104,10 @@ fun AppNavigation(
     LaunchedEffect(Unit) {
         radioViewModel.bindService(context)
     }
+=======
+    val startDestination = if (isLoggedIn) Screen.Home.route else Screen.Login.route
+    val gson = Gson()
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
 
     LaunchedEffect(isLoggedIn) {
         Log.d("AppNavigation", "isLoggedIn: $isLoggedIn, startDestination: $startDestination")
@@ -175,12 +185,29 @@ fun AppNavigation(
                     }
                 )
             }
+<<<<<<< HEAD
             composable(Screen.Radio.route) {
                 RadioScreen(
                     userRepository = userRepository,
                     viewModel = radioViewModel,
                     onStationClick = {
                         Log.d("AppNavigation", "Radio station clicked: ${it.name}")
+=======
+            composable(Screen.Home.route) {
+                HomeScreen(
+                    viewModel = viewModel,
+                    onNewsClick = { news ->
+                        if (BuildConfig.DEBUG) {
+                            Log.d("AppNavigation", "Navigating to news detail with ID: ${news.article_id}")
+                        }
+                        try {
+                            val newsJson = gson.toJson(news)
+                            Log.d("AppNavigation", "Serialized newsJson: $newsJson")
+                            navController.navigate(Screen.NewsDetail.createRoute(newsJson))
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
+                        }
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
                     }
                 )
             }

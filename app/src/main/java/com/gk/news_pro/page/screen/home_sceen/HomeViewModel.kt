@@ -48,7 +48,7 @@ class HomeViewModel(
             try {
                 testGetUser()
                 val response = repository.getNews(
-                    apiKey = "pub_7827211e80c068cf7ded249ee01e644d60afc"
+                    apiKey = "pub_832257f70990e247b185d0a5036ebffda6e10" //"pub_7827211e80c068cf7ded249ee01e644d60afc"
                 )
                 if (response.results.isNullOrEmpty()) {
                     Log.e(TAG, "fetchGeneralNews: No news available from API")

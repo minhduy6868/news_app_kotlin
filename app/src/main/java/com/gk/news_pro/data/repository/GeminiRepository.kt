@@ -1,7 +1,10 @@
 package com.gk.news_pro.data.repository
 
+<<<<<<< HEAD
 import android.util.Log
 import com.gk.news_pro.data.model.News
+=======
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
 import com.gk.news_pro.data.service.GeminiApiService
 import com.gk.news_pro.data.service.GeminiResponse
 import com.gk.news_pro.page.utils.RetrofitClient
@@ -21,11 +24,14 @@ class GeminiRepository {
     suspend fun generateContent(prompt: String): String {
         return withContext(Dispatchers.IO) {
             try {
+<<<<<<< HEAD
                 if (prompt.isBlank()) {
                     Log.e("GeminiRepository", "Prompt is empty or blank")
                     return@withContext "Lỗi: Prompt không được để trống"
                 }
                 Log.d("GeminiRepository", "Sending prompt: $prompt")
+=======
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
                 val requestJson = JSONObject().apply {
                     put("contents", JSONArray().apply {
                         put(JSONObject().apply {
@@ -47,6 +53,7 @@ class GeminiRepository {
 
                 if (response.isSuccessful) {
                     response.body()?.let { geminiResponse ->
+<<<<<<< HEAD
                         val result = parseGeminiResponse(geminiResponse)
                         Log.d("GeminiRepository", "Generated content: $result")
                         if (result.isBlank()) {
@@ -58,10 +65,17 @@ class GeminiRepository {
                 } else {
                     response.errorBody()?.string()?.let { errorBody ->
                         Log.e("GeminiRepository", "API error: ${response.code()} - $errorBody")
+=======
+                        parseGeminiResponse(geminiResponse)
+                    } ?: "Không có phản hồi từ API."
+                } else {
+                    response.errorBody()?.string()?.let { errorBody ->
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
                         "Lỗi: ${response.code()} - ${response.message()}, Chi tiết: $errorBody"
                     } ?: "Lỗi: ${response.code()} - ${response.message()}"
                 }
             } catch (e: Exception) {
+<<<<<<< HEAD
                 Log.e("GeminiRepository", "Exception: ${e.localizedMessage ?: e.toString()}")
                 "Lỗi: ${e.localizedMessage ?: e.toString()}"
             }
@@ -113,8 +127,14 @@ class GeminiRepository {
             Nguồn: ${news.source_name ?: "Không xác định"}
             Ngày đăng: ${news.pubDate ?: "Không xác định"}
             """.trimIndent()
+=======
+                "Lỗi: ${e.localizedMessage ?: e.toString()}"
+            }
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
         }
+    }
 
+<<<<<<< HEAD
         return """
             Tạo kịch bản bản tin nhanh (dưới 60 giây) dựa trên danh sách tin tức sau đây. Kịch bản phải:
             - Ngắn gọn, súc tích, phù hợp để đọc trong video.
@@ -136,6 +156,18 @@ class GeminiRepository {
         """.trimIndent()
     }
 
+=======
+    private fun parseGeminiResponse(response: GeminiResponse): String {
+        return try {
+            response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                ?: response.error?.message
+                ?: "Không có phản hồi từ AI."
+        } catch (e: Exception) {
+            "Lỗi khi phân tích phản hồi: ${e.localizedMessage ?: e.toString()}"
+        }
+    }
+
+>>>>>>> 1f7535ebf34af3d8e7fa8eb44a53ad88d29f29d3
     suspend fun analyzeNews(content: String): String {
         val prompt = buildNewsAnalysisPrompt(content)
         return generateContent(prompt)

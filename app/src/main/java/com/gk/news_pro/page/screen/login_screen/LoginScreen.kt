@@ -104,7 +104,7 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 TextField(
-                    value = "12345678Aa" ,   //password,
+                    value = password,
                     onValueChange = viewModel::updatePassword,
                     modifier = Modifier
                         .fillMaxWidth()
