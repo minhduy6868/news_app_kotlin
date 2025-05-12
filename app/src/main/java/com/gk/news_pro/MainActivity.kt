@@ -1,5 +1,7 @@
 package com.gk.news_pro
 
+
+import OnBoardingScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,7 +12,6 @@ import androidx.compose.ui.Modifier
 import com.gk.news_pro.page.navigation.AppNavigation
 import com.gk.news_pro.ui.theme.NewsProTheme
 
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,7 +21,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavigation()
+                    OnBoardingScreen()
                 }
             }
         }

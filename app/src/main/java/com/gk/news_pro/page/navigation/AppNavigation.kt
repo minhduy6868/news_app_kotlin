@@ -1,5 +1,6 @@
 package com.gk.news_pro.page.navigation
 
+
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -43,13 +45,16 @@ import com.gk.news_pro.page.screen.favorite_screen.FavoriteScreen
 import com.gk.news_pro.page.screen.radio_screen.RadioScreen
 import com.gk.news_pro.page.screen.radio_screen.RadioViewModel
 import com.gk.news_pro.page.screen.radio_screen.components.MiniPlayer
+
 import com.gk.news_pro.page.utils.service.PlaybackState
 import com.gk.news_pro.utils.MediaPlayerManager
 import com.google.ai.client.generativeai.BuildConfig
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
+import okhttp3.Route
 import java.net.URLDecoder
 import java.net.URLEncoder
+
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Radio : Screen("radio", "Radio", Icons.Filled.PlayArrow)
@@ -62,13 +67,18 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
             return "news_detail/$encodedJson"
         }
     }
+    object OnBoardingScreen : Screen("onboarding", "OnBoarding")
+    object Splash : Screen("splash", "Splash")
     object Login : Screen("login", "Đăng nhập")
     object Register : Screen("register", "Đăng ký")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    startDestination: String = Screen.Radio.route,
+    onNavigationReady: (() -> Unit)? = null
+) {
     val navController = rememberNavController()
     val bottomNavItems = listOf(Screen.Radio, Screen.Explore, Screen.Favorite, Screen.Account)
     val newsRepository = NewsRepository()
@@ -80,9 +90,10 @@ fun AppNavigation() {
     )
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
-    val startDestination = if (isLoggedIn) Screen.Radio.route else Screen.Login.route
+   // val startDestination = if (isLoggedIn) Screen.Radio.route else Screen.Login.route
     val context = LocalContext.current // Lấy Context từ LocalContext
     val gson = Gson()
+
 
     LaunchedEffect(Unit) {
         radioViewModel.bindService(context)
@@ -123,9 +134,19 @@ fun AppNavigation() {
         ) {
         NavHost(
             navController = navController,
-            startDestination = startDestination,
+           startDestination = startDestination,
+
             modifier = Modifier.fillMaxSize()
         ) {
+//            composable(
+//                route = Screen.OnBoardingScreen.route
+//            ) {
+//                val viewModel: OnBoardingViewModel = hiltViewModel()
+//                OnBoardingScreen(
+//                    event = viewModel::onEvent
+//                )
+//            }
+
             composable(Screen.Login.route) {
                 LoginScreen(
                     userRepository = userRepository,

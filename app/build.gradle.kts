@@ -2,7 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     id("com.google.gms.google-services")
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"
+    id("com.google.dagger.hilt.android")
+    id("kotlin-parcelize")
+ //   id("org.jetbrains.kotlin.plugin.compose")
+    kotlin("kapt") // Thay id("org.jetbrains.kotlin.kapt")
+    kotlin("plugin.compose")
+
 }
 
 android {
@@ -42,7 +47,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.11" // Updated to match Kotlin version
+        kotlinCompilerExtensionVersion = "1.5.12" // Updated to match Kotlin version
     }
     packaging {
         resources {
@@ -50,6 +55,11 @@ android {
         }
     }
 }
+//configurations.all {
+//    resolutionStrategy {
+//        force("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
+//    }
+//}
 
 dependencies {
     // Core Android
@@ -65,16 +75,49 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.core.android)
+    implementation(libs.protolite.well.known.types)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Jetpack Compose
+    implementation(platform("androidx.compose:compose-bom:2024.03.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3:1.2.0")
+    implementation("com.google.android.material:material:1.11.0")
+
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation(libs.firebase.database.ktx)
     implementation(libs.firebase.auth.ktx)
+
+  //  implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
+
+
+    //navigatio
+    implementation("androidx.navigation:navigation-compose:2.7.5")
+
+        //prefeces
+    implementation( "androidx.datastore:datastore-preferences:1.0.0")
+
+    // Hilt
+    implementation("com.google.dagger:hilt-android:2.51")
+    kapt("com.google.dagger:hilt-compiler:2.51")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.03.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+   // implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0") // hoặc phiên bản mới nhất
+
+
+    // Splash API
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
