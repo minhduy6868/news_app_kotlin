@@ -16,7 +16,7 @@ import com.gk.news_pro.page.screen.radio_screen.RadioViewModel
 
 class ViewModelFactory(
     private val repositories: Any,
-    private val context: Context? = null // Thêm context với giá trị mặc định là null
+    private val context: Context? = null // Context với giá trị mặc định là null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -38,6 +38,7 @@ class ViewModelFactory(
                     ExploreViewModel(
                         newsRepository = repositories[0] as NewsRepository,
                         userRepository = repositories[1] as UserRepository,
+                        prefsManager = PrefsManager.getInstance(context),
                         heyGenRepository = HeyGenRepository(context)
                     ) as T
                 } else {

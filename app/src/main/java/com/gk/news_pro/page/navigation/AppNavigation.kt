@@ -1,6 +1,5 @@
 package com.gk.news_pro.page.navigation
 
-
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.background
@@ -21,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -39,22 +37,19 @@ import com.gk.news_pro.page.screen.account_screen.AccountScreen
 import com.gk.news_pro.page.screen.auth.LoginScreen
 import com.gk.news_pro.page.screen.auth.RegisterScreen
 import com.gk.news_pro.page.screen.detail_screen.NewsDetailScreen
+import com.gk.news_pro.page.screen.explore_sceen.ExploreScreen
 import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
-import com.gk.news_pro.page.screen.explore_screen.ExploreScreen
 import com.gk.news_pro.page.screen.favorite_screen.FavoriteScreen
 import com.gk.news_pro.page.screen.radio_screen.RadioScreen
 import com.gk.news_pro.page.screen.radio_screen.RadioViewModel
 import com.gk.news_pro.page.screen.radio_screen.components.MiniPlayer
-
 import com.gk.news_pro.page.utils.service.PlaybackState
 import com.gk.news_pro.utils.MediaPlayerManager
 import com.google.ai.client.generativeai.BuildConfig
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
-
 import java.net.URLDecoder
 import java.net.URLEncoder
-
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Radio : Screen("radio", "Radio", Icons.Filled.PlayArrow)
@@ -85,7 +80,7 @@ fun AppNavigation() {
     )
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
-    val startDestination = if (isLoggedIn) Screen.Radio.route else Screen.Login.route
+    val startDestination = Screen.Radio.route // Always start with Radio screen
     val context = LocalContext.current // Lấy Context từ LocalContext
     val gson = Gson()
 
@@ -108,7 +103,7 @@ fun AppNavigation() {
                     items = bottomNavItems,
                     currentRoute = currentRoute,
                     onItemClick = { screen ->
-                        if ((screen == Screen.Favorite || screen == Screen.Account) && !userRepository.isLoggedIn()) {
+                        if (screen == Screen.Account && !userRepository.isLoggedIn()) {
                             Log.d("AppNavigation", "User not logged in, redirecting to Login")
                             navController.navigate(Screen.Login.route)
                         } else {
@@ -122,9 +117,10 @@ fun AppNavigation() {
             }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             NavHost(
                 navController = navController,

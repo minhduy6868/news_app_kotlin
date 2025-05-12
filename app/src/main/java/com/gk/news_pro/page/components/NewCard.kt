@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.gk.news_pro.data.model.News
-import com.gk.news_pro.page.screen.explore_screen.formatRelativeTime
+import com.gk.news_pro.page.screen.explore_sceen.formatRelativeTime
 import java.text.SimpleDateFormat
 import java.util.*
 @Composable

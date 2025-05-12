@@ -1,13 +1,13 @@
-package com.gk.news_pro.page.screen.explore_screen
+package com.gk.news_pro.page.screen.explore_sceen
 
 import android.content.Context
-import android.webkit.WebView
+import android.util.Log
+import android.widget.VideoView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,15 +43,13 @@ import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.NewsRepository
 import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.components.NewsCard
+import com.gk.news_pro.page.main_viewmodel.PrefsManager
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
-import com.gk.news_pro.page.screen.explore_sceen.ExploreUiState
-import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
-import com.gk.news_pro.page.screen.explore_sceen.VideoScriptState
-import android.util.Log
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(
     userRepository: UserRepository,
@@ -73,13 +71,25 @@ fun ExploreScreen(
     val bookmarkedNews by viewModel.bookmarkedNews.collectAsState()
     val videoScriptState by viewModel.videoScriptState.collectAsState()
     val latestVideoUrl by viewModel.latestVideoUrl.collectAsState()
+    val prefsManager = PrefsManager.getInstance(context)
     var showLoginPrompt by remember { mutableStateOf(false) }
-    var showVideoDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Scaffold { innerPadding ->
+    LaunchedEffect(Unit) {
+        prefsManager.getVideoId()?.let { videoId ->
+            coroutineScope.launch {
+                viewModel.checkVideoStatusAfterDelay(videoId)
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
@@ -95,81 +105,228 @@ fun ExploreScreen(
                     .padding(innerPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Video player
-                latestVideoUrl?.let { videoUrl ->
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(240.dp)
-                                .padding(horizontal = 16.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                        ) {
-                            AndroidView(
-                                factory = { ctx ->
-                                    WebView(ctx).apply {
-                                        settings.javaScriptEnabled = true
-                                        settings.mediaPlaybackRequiresUserGesture = false
-                                        loadData(
-                                            """
-                                            <html>
-                                                <body style="margin:0;padding:0;">
-                                                    <video controls width="100%" height="100%">
-                                                        <source src="$videoUrl" type="video/mp4">
-                                                    </video>
-                                                </body>
-                                            </html>
-                                            """.trimIndent(),
-                                            "text/html",
-                                            "UTF-8"
+                // Manual check button
+                item {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                val videoId = prefsManager.getVideoId()
+                                if (videoId != null) {
+                                    viewModel.checkVideoStatusAfterDelay(videoId)
+                                    snackbarHostState.showSnackbar("Đang kiểm tra trạng thái video...")
+                                } else {
+                                    viewModel.checkAndGenerateDailyVideo()
+                                    snackbarHostState.showSnackbar("Đang kiểm tra hoặc tạo video mới...")
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Text("Kiểm tra hoặc tạo video")
+                    }
+                }
+
+                // Video display section
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp)
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        when {
+                            latestVideoUrl != null -> {
+                                var isVideoError by remember { mutableStateOf(false) }
+                                var isPlaying by remember { mutableStateOf(true) }
+                                if (isVideoError) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(MaterialTheme.colorScheme.errorContainer),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "Không thể hiển thị video",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onErrorContainer
                                         )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        TextButton(onClick = {
+                                            isVideoError = false
+                                            viewModel.checkAndGenerateDailyVideo()
+                                        }) {
+                                            Text("Thử lại")
+                                        }
                                     }
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            IconButton(
-                                onClick = { viewModel.clearLatestVideo() },
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .size(32.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                                        RoundedCornerShape(16.dp)
+                                } else {
+                                    var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clickable {
+                                                videoViewRef?.let { videoView ->
+                                                    if (isPlaying) {
+                                                        videoView.pause()
+                                                        isPlaying = false
+                                                    } else {
+                                                        videoView.start()
+                                                        isPlaying = true
+                                                    }
+                                                }
+                                            }
+                                    ) {
+                                        AndroidView(
+                                            factory = { ctx ->
+                                                VideoView(ctx).apply {
+                                                    setVideoPath(latestVideoUrl)
+                                                    setZOrderOnTop(true)
+                                                    setOnPreparedListener {
+                                                        start()
+                                                        isPlaying = true
+                                                        Log.d("VideoView", "Video started playing: $latestVideoUrl")
+                                                    }
+                                                    setOnErrorListener { _, what, extra ->
+                                                        Log.e("VideoView", "Error playing video: what=$what, extra=$extra")
+                                                        isVideoError = true
+                                                        true
+                                                    }
+                                                    videoViewRef = this
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        DisposableEffect(latestVideoUrl) {
+                                            onDispose {
+                                                videoViewRef?.let {
+                                                    it.stopPlayback()
+                                                    videoViewRef = null
+                                                    Log.d("VideoView", "VideoView resources released")
+                                                }
+                                            }
+                                        }
+                                        AnimatedVisibility(
+                                            visible = !isPlaying,
+                                            enter = fadeIn(animationSpec = tween(200)),
+                                            exit = fadeOut(animationSpec = tween(200)),
+                                            modifier = Modifier.align(Alignment.Center)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Play",
+                                                tint = Color.White,
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .background(
+                                                        Color.Black.copy(alpha = 0.5f),
+                                                        RoundedCornerShape(24.dp)
+                                                    )
+                                                    .padding(8.dp)
+                                            )
+                                        }
+                                        if (videoViewRef?.isPlaying == false && isPlaying) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .align(Alignment.Center),
+                                                strokeWidth = 4.dp,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            videoScriptState is VideoScriptState.Processing -> {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(48.dp),
+                                        strokeWidth = 4.dp,
+                                        color = MaterialTheme.colorScheme.secondary
                                     )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Xóa video",
-                                    tint = MaterialTheme.colorScheme.onSurface
-                                )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Đang tạo video tóm tắt...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                            else -> {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = "Không có video",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Chưa có video tóm tắt",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                // Processing notification
-                if (videoScriptState is VideoScriptState.Processing) {
+                // Video error state
+                if (videoScriptState is VideoScriptState.Error) {
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .background(MaterialTheme.colorScheme.errorContainer)
                                 .padding(12.dp)
                         ) {
-                            Text(
-                                text = "Video bản tin đang được tạo, sẽ sẵn sàng sau khoảng 5 phút.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textAlign = TextAlign.Center
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = (videoScriptState as VideoScriptState.Error).message,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(onClick = {
+                                    coroutineScope.launch {
+                                        val videoId = prefsManager.getVideoId()
+                                        if (videoId != null) {
+                                            viewModel.checkVideoStatusAfterDelay(videoId)
+                                        } else {
+                                            viewModel.checkAndGenerateDailyVideo()
+                                        }
+                                    }
+                                }) {
+                                    Text("Thử lại")
+                                }
+                            }
                         }
                     }
                 }
 
+                // Search bar
                 item {
                     SearchBar(
                         query = searchQuery,
@@ -179,52 +336,7 @@ fun ExploreScreen(
                     )
                 }
 
-                item {
-                    Button(
-                        onClick = {
-                            val newsList = when {
-                                searchQuery.isNotEmpty() && newsState is ExploreUiState.Success ->
-                                    (newsState as ExploreUiState.Success).news
-                                else -> trendingNews
-                            }
-                            if (newsList.isEmpty()) {
-                                Log.e("ExploreScreen", "News list is empty, cannot generate video")
-                                showVideoDialog = true
-                                viewModel.generateNewsVideo(newsList)
-                            } else {
-                                Log.d("ExploreScreen", "Generating video with ${newsList.size} news items")
-                                viewModel.generateNewsVideo(newsList)
-                                showVideoDialog = true
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary,
-                            contentColor = MaterialTheme.colorScheme.onSecondary
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Tạo video bản tin",
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Tạo video bản tin nhanh",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
-                }
-
+                // Trending news section
                 if (searchQuery.isEmpty()) {
                     item {
                         TrendingSection(
@@ -242,6 +354,7 @@ fun ExploreScreen(
                         )
                     }
 
+                    // Category strip
                     item {
                         CategoryStrip(
                             categories = categories,
@@ -250,6 +363,7 @@ fun ExploreScreen(
                         )
                     }
 
+                    // News list
                     when (newsState) {
                         is ExploreUiState.Success -> {
                             val newsList = (newsState as ExploreUiState.Success).news
@@ -289,6 +403,7 @@ fun ExploreScreen(
                         }
                     }
                 } else {
+                    // Search results
                     when (newsState) {
                         is ExploreUiState.Success -> {
                             val results = (newsState as ExploreUiState.Success).news
@@ -338,116 +453,7 @@ fun ExploreScreen(
                 }
             }
 
-            if (showVideoDialog) {
-                AlertDialog(
-                    onDismissRequest = { showVideoDialog = false },
-                    title = { Text("Kết quả bản tin video", style = MaterialTheme.typography.titleMedium) },
-                    text = {
-                        when (videoScriptState) {
-                            is VideoScriptState.Loading -> {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(100.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator()
-                                    Text(
-                                        "Đang tạo kịch bản...",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(top = 16.dp)
-                                    )
-                                }
-                            }
-                            is VideoScriptState.Processing -> {
-                                val script = (videoScriptState as VideoScriptState.Processing).script
-                                Column {
-                                    Text(
-                                        "Kịch bản bản tin:",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        script,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(vertical = 8.dp)
-                                    )
-                                    Text(
-                                        "Video đang được tạo, sẽ sẵn sàng sau khoảng 5 phút.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.secondary
-                                    )
-                                }
-                            }
-                            is VideoScriptState.Success -> {
-                                val (script, videoUrl) = videoScriptState as VideoScriptState.Success
-                                Column {
-                                    Text(
-                                        "Kịch bản bản tin:",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        script,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(vertical = 8.dp)
-                                    )
-                                    Text(
-                                        "Video URL:",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        videoUrl,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.secondary
-                                    )
-                                }
-                            }
-                            is VideoScriptState.Error -> {
-                                Column {
-                                    Text(
-                                        "Lỗi:",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    Text(
-                                        (videoScriptState as VideoScriptState.Error).message,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    TextButton(
-                                        onClick = {
-                                            val newsList = when {
-                                                searchQuery.isNotEmpty() && newsState is ExploreUiState.Success ->
-                                                    (newsState as ExploreUiState.Success).news
-                                                else -> trendingNews
-                                            }
-                                            viewModel.generateNewsVideo(newsList)
-                                        }
-                                    ) {
-                                        Text("Thử lại")
-                                    }
-                                }
-                            }
-                            is VideoScriptState.Idle -> {
-                                Text(
-                                    "Đang chờ xử lý...",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showVideoDialog = false }) {
-                            Text("Đóng")
-                        }
-                    }
-                )
-            }
-
+            // Login prompt dialog
             if (showLoginPrompt) {
                 AlertDialog(
                     onDismissRequest = { showLoginPrompt = false },

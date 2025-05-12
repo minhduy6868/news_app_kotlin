@@ -16,7 +16,7 @@ class GeminiRepository {
     private val geminiApiService: GeminiApiService =
         RetrofitClient.geminiRetrofit.create(GeminiApiService::class.java)
 
-    private val apiKey = "AIzaSyCLbQa-NpxZKbgLzhaCp9ugcTVLvz1EDbM" // Đảm bảo key hợp lệ
+    private val apiKey = "AIzaSyCLbQa-NpxZKbgLzhaCp9ugcTVLvz1EDbM"
 
     suspend fun generateContent(prompt: String): String {
         return withContext(Dispatchers.IO) {
@@ -44,7 +44,7 @@ class GeminiRepository {
                 )
 
                 val response = geminiApiService.generateContent(apiKey, requestBody)
-
+                response.errorBody()?.close() // Ensure response body is closed
                 if (response.isSuccessful) {
                     response.body()?.let { geminiResponse ->
                         val result = parseGeminiResponse(geminiResponse)
@@ -96,15 +96,26 @@ class GeminiRepository {
         val prompt = buildNewsVideoScriptPrompt(validNews)
         val script = generateContent(prompt)
         Log.d("GeminiRepository", "Generated script: $script")
-        if (script.startsWith("Lỗi") || script.isBlank()) {
+        if (script.startsWith("Lỗi") || script.isBlank() || !isScriptValid(script)) {
             Log.e("GeminiRepository", "Invalid script: $script")
-            return "Lỗi: Không thể tạo kịch bản video"
+            // Fallback to a minimal valid script
+            return """
+                
+                Xin chào quý vị khán giả! Đây là bản tin nhanh hôm nay.
+                ${validNews.take(2).joinToString(" ") { it.title ?: "" }}
+                Cảm ơn quý vị đã theo dõi!
+            """.trimIndent()
         }
         return script
     }
 
+    private fun isScriptValid(script: String): Boolean {
+        val lowerScript = script.lowercase()
+        return lowerScript.contains("[tóm tắt các tin tức]") && lowerScript.contains("[lời kết]")
+    }
+
     private fun buildNewsVideoScriptPrompt(newsList: List<News>): String {
-        val newsSummary = newsList.take(5).joinToString("\n\n") { news ->
+        val newsSummary = newsList.take(3).joinToString("\n\n") { news ->
             """
             Tin tức ${newsList.indexOf(news) + 1}:
             Tiêu đề: ${news.title ?: "Không có tiêu đề"}
@@ -116,23 +127,23 @@ class GeminiRepository {
         }
 
         return """
-            Tạo kịch bản bản tin nhanh (dưới 60 giây) dựa trên danh sách tin tức sau đây. Kịch bản phải:
-            - Ngắn gọn, súc tích, phù hợp để đọc trong video.
+            Tạo kịch bản bản tin nhanh (dưới 40 giây) dựa trên danh sách tin tức sau đây. Kịch bản phải:
+            - Súc tích, phù hợp để đọc trong video ngắn.
             - Sử dụng ngôn ngữ tự nhiên, thân thiện, như một phát thanh viên chuyên nghiệp.
             - Bao gồm lời chào mở đầu và kết thúc ngắn gọn.
-            - Tóm tắt 3-5 tin tức chính, mỗi tin chỉ 1-2 câu, tập trung vào điểm nổi bật.
-            - Tránh thông tin không cần thiết hoặc chi tiết phức tạp.
+            - Tóm tắt 2-3 tin tức chính, mỗi tin 1-2 câu, tập trung vào điểm nổi bật.
+            - Tránh thông tin không cần thiết, giữ nội dung ngắn gọn.
             - Ngôn ngữ: Tiếng Việt.
+            - Đảm bảo định dạng chính xác với các tiêu đề [Lời chào], [Tóm tắt các tin tức], [Lời kết].
 
             Danh sách tin tức:
             $newsSummary
 
             Định dạng trả lời:
-            ```
             [Lời chào]
             [Tóm tắt các tin tức]
             [Lời kết]
-            ```
+            Làm thành 1 đoạn văn.
         """.trimIndent()
     }
 
@@ -153,57 +164,57 @@ class GeminiRepository {
 
     private fun buildNewsAnalysisPrompt(content: String): String {
         return """
-            Phân tích nội dung tin tức sau đây:
-            
-            Nội dung: $content
-            
-            Hãy cung cấp phân tích với hai phần chính, định dạng rõ ràng bằng tiếng Việt:
-            
-            ### 1. Tóm tắt điểm chính
-            - Tóm tắt nội dung chính của bài báo trong 3-5 câu.
-            - Tập trung vào các ý chính, sự kiện hoặc thông tin cốt lõi.
-            
-            ### 2. Đánh giá và triển vọng
-            - Các yếu tố liên quan đến tin tức (ví dụ: kinh tế, xã hội, chính trị, môi trường, công nghệ...).
-            - Ảnh hưởng của tin tức đến các bên liên quan (cá nhân, tổ chức, cộng đồng, quốc gia...).
-            - Triển vọng hoặc xu hướng tương lai liên quan đến chủ đề của bài báo.
-            - Đánh giá tính khách quan của thông tin (nếu có thể).
-            
-            Định dạng trả lời phải rõ ràng, sử dụng tiêu đề cấp 3 (###) cho từng phần, và các gạch đầu dòng (-) cho các ý chính trong mỗi phần.
-        """.trimIndent()
+Phân tích nội dung tin tức sau đây:
+
+Nội dung: $content
+
+Hãy cung cấp phân tích với hai phần chính, định dạng rõ ràng bằng tiếng Việt:
+
+### 1. Tóm tắt điểm chính
+- Tóm tắt nội dung chính của bài báo trong 3-5 câu.
+- Tập trung vào các ý chính, sự kiện hoặc thông tin cốt lõi.
+
+### 2. Đánh giá và triển vọng
+- Các yếu tố liên quan đến tin tức (ví dụ: kinh tế, xã hội, chính trị, môi trường, công nghệ...).
+- Ảnh hưởng của tin tức đến các bên liên quan (cá nhân, tổ chức, cộng đồng, quốc gia...).
+- Triển vọng hoặc xu hướng tương lai liên quan đến chủ đề của bài báo.
+- Đánh giá tính khách quan của thông tin (nếu có thể).
+
+Định dạng trả lời phải rõ ràng, sử dụng tiêu đề cấp 3 (###) cho từng phần, và các gạch đầu dòng (-) cho các ý chính trong mỗi phần.
+""".trimIndent()
     }
 
     private fun buildUrlAnalysisPrompt(url: String): String {
         return """
-            Hãy phân tích bài báo từ link sau: $url
-            
-            Hãy cung cấp phân tích với hai phần chính, định dạng rõ ràng bằng tiếng Việt:
-            
-            ### 1. Tóm tắt điểm chính
-            - Tóm tắt nội dung chính của bài báo trong 3-5 câu.
-            - Tập trung vào các ý chính, sự kiện hoặc thông tin cốt lõi.
-            
-            ### 2. Đánh giá và triển vọng
-            - Các yếu tố liên quan đến tin tức (ví dụ: kinh tế, xã hội, chính trị, môi trường, công nghệ...).
-            - Ảnh hưởng của tin tức đến các bên liên quan (cá nhân, tổ chức, cộng đồng, quốc gia...).
-            - Triển vọng hoặc xu hướng tương lai liên quan đến chủ đề của bài báo.
-            - Đánh giá tính khách quan của thông tin (nếu có thể).
-            
-            Định dạng trả lời phải rõ ràng, sử dụng tiêu đề cấp 3 (###) cho từng phần, và các gạch đầu dòng (-) cho các ý chính trong mỗi phần.
-        """.trimIndent()
+Hãy phân tích bài báo từ link sau: $url
+
+Hãy cung cấp phân tích với hai phần chính, định dạng rõ ràng bằng tiếng Việt:
+
+### 1. Tóm tắt điểm chính
+- Tóm tắt nội dung chính của bài báo trong 3-5 câu.
+- Tập trung vào các ý chính, sự kiện hoặc thông tin cốt lõi.
+
+### 2. Đánh giá và triển vọng
+- Các yếu tố liên quan đến tin tức (ví dụ: kinh tế, xã hội, chính trị, môi trường, công nghệ...).
+- Ảnh hưởng của tin tức đến các bên liên quan (cá nhân, tổ chức, cộng đồng, quốc gia...).
+- Triển vọng hoặc xu hướng tương lai liên quan đến chủ đề của bài báo.
+- Đánh giá tính khách quan của thông tin (nếu có thể).
+
+Định dạng trả lời phải rõ ràng, sử dụng tiêu đề cấp 3 (###) cho từng phần, và các gạch đầu dòng (-) cho các ý chính trong mỗi phần.
+""".trimIndent()
     }
 
     private fun buildArticleContinuationPrompt(url: String): String {
         return """
-            Dựa trên bài báo từ link sau: $url
-            
-            Hãy tiếp tục viết bài báo, mở rộng nội dung một cách tự nhiên và logic. Nội dung tiếp tục nên:
-            1. Giữ nguyên giọng điệu và phong cách của bài báo gốc
-            2. Cung cấp thông tin bổ sung hoặc phân tích sâu hơn về chủ đề
-            3. Có độ dài khoảng 3-5 đoạn văn
-            4. Đảm bảo tính chính xác và phù hợp với ngữ cảnh
-            
-            Hãy trả lời bằng tiếng Việt, định dạng rõ ràng.
-        """.trimIndent()
+Dựa trên bài báo từ link sau: $url
+
+Hãy tiếp tục viết bài báo, mở rộng nội dung một cách tự nhiên và logic. Nội dung tiếp tục nên:
+1. Giữ nguyên giọng điệu và phong cách của bài báo gốc
+2. Cung cấp thông tin bổ sung hoặc phân tích sâu hơn về chủ đề
+3. Có độ dài khoảng 3-5 đoạn văn
+4. Đảm bảo tính chính xác và phù hợp với ngữ cảnh
+
+Hãy trả lời bằng tiếng Việt, định dạng rõ ràng.
+""".trimIndent()
     }
 }
