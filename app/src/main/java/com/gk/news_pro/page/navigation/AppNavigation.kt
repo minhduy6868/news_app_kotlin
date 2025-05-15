@@ -30,6 +30,7 @@ import androidx.navigation.navArgument
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.GeminiRepository
 import com.gk.news_pro.data.repository.NewsRepository
+import com.gk.news_pro.data.repository.PostRepository
 import com.gk.news_pro.data.repository.RadioRepository
 import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
@@ -40,6 +41,7 @@ import com.gk.news_pro.page.screen.detail_screen.NewsDetailScreen
 import com.gk.news_pro.page.screen.explore_sceen.ExploreScreen
 import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
 import com.gk.news_pro.page.screen.favorite_screen.FavoriteScreen
+import com.gk.news_pro.page.screen.news_feed.NewsFeedScreen
 import com.gk.news_pro.page.screen.radio_screen.RadioScreen
 import com.gk.news_pro.page.screen.radio_screen.RadioViewModel
 import com.gk.news_pro.page.screen.radio_screen.components.MiniPlayer
@@ -54,6 +56,7 @@ import java.net.URLEncoder
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Radio : Screen("radio", "Radio", Icons.Filled.PlayArrow)
     object Explore : Screen("explore", "Explore", Icons.Filled.DateRange)
+    object NewsFeed : Screen("news_feed", "News Feed", Icons.Filled.Home)
     object Favorite : Screen("favorite", "Favorite", Icons.Filled.Favorite)
     object Account : Screen("account", "Account", Icons.Filled.AccountCircle)
     object NewsDetail : Screen("news_detail/{newsJson}", "News Detail") {
@@ -70,18 +73,21 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val bottomNavItems = listOf(Screen.Radio, Screen.Explore, Screen.Favorite, Screen.Account)
+    // Added NewsFeed to bottom navigation bar
+    val bottomNavItems = listOf(Screen.Explore, Screen.NewsFeed, Screen.Radio, Screen.Favorite, Screen.Account)
     val newsRepository = NewsRepository()
     val geminiRepository = GeminiRepository()
     val userRepository = UserRepository()
     val radioRepository = RadioRepository()
+    val postRepository = PostRepository()
     val radioViewModel: RadioViewModel = viewModel(
         factory = ViewModelFactory(listOf(radioRepository, userRepository))
     )
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
-    val startDestination = Screen.Radio.route // Always start with Radio screen
-    val context = LocalContext.current // Lấy Context từ LocalContext
+    // Kept Radio as start destination; change to Screen.NewsFeed.route if you want NewsFeed as default
+    val startDestination = Screen.Radio.route
+    val context = LocalContext.current
     val gson = Gson()
 
     LaunchedEffect(Unit) {
@@ -103,7 +109,7 @@ fun AppNavigation() {
                     items = bottomNavItems,
                     currentRoute = currentRoute,
                     onItemClick = { screen ->
-                        if (screen == Screen.Account && !userRepository.isLoggedIn()) {
+                        if ((screen == Screen.Account || screen == Screen.NewsFeed) && !userRepository.isLoggedIn()) {
                             Log.d("AppNavigation", "User not logged in, redirecting to Login")
                             navController.navigate(Screen.Login.route)
                         } else {
@@ -168,12 +174,12 @@ fun AppNavigation() {
                     val exploreViewModel: ExploreViewModel = viewModel(
                         factory = ViewModelFactory(
                             repositories = listOf(newsRepository, userRepository),
-                            context = context // Truyền Context vào ViewModelFactory
+                            context = context
                         )
                     )
                     ExploreScreen(
                         userRepository = userRepository,
-                        context = context, // Truyền Context vào ExploreScreen
+                        context = context,
                         viewModel = exploreViewModel,
                         onNewsClick = { news ->
                             try {
@@ -184,6 +190,12 @@ fun AppNavigation() {
                                 Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
                             }
                         }
+                    )
+                }
+                composable(Screen.NewsFeed.route) {
+                    NewsFeedScreen(
+                        userRepository = userRepository,
+                        postRepository = postRepository
                     )
                 }
                 composable(Screen.Favorite.route) {
@@ -204,7 +216,7 @@ fun AppNavigation() {
                 composable(Screen.Account.route) {
                     AccountScreen(
                         userRepository = userRepository,
-                        onLogout = {
+                        onSignOut = {
                             coroutineScope.launch {
                                 userRepository.signOut()
                                 Log.d("AppNavigation", "User logged out, navigating to Login")

@@ -1,11 +1,17 @@
 package com.gk.news_pro.page.screen.account_screen
 
+import android.content.Context
+import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
@@ -18,141 +24,266 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.gk.news_pro.data.model.User
 import com.gk.news_pro.data.repository.UserRepository
+import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(
     userRepository: UserRepository,
-    onLogout: () -> Unit
+    onSignOut: () -> Unit,
+    context: Context = LocalContext.current,
+    viewModel: AccountViewModel = viewModel(
+        factory = ViewModelFactory(
+            repositories = userRepository,
+            context = context
+        )
+    )
 ) {
     var notificationsEnabled by remember { mutableStateOf(true) }
-    var user by remember { mutableStateOf<User?>(null) }
+    var username by remember { mutableStateOf("") }
+    var avatarUri by remember { mutableStateOf<Uri?>(null) }
+    val uiState by viewModel.uiState.collectAsState()
+    val user by viewModel.user.collectAsState()
+    val isUpdatingProfile by viewModel.isUpdatingProfile.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // Fetch user data
-    LaunchedEffect(Unit) {
-        user = userRepository.getUser()
-
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        avatarUri = uri
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    // Permission launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            imagePickerLauncher.launch("image/*")
+        } else {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Permission denied")
+            }
+        }
+    }
+
+    // Update username when user data loads
+    LaunchedEffect(user) {
+        user?.let {
+            username = it.username ?: ""
+        }
+    }
+
+    // Show snackbar for UI state changes
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is AccountUiState.Success -> {
+                if (user != null && avatarUri != null) {
+                    avatarUri = null // Reset after successful update
+                    snackbarHostState.showSnackbar("Profile updated successfully")
+                }
+            }
+            is AccountUiState.Error -> {
+                snackbarHostState.showSnackbar((uiState as AccountUiState.Error).message)
+            }
+            else -> {}
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
-
-
-
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        LazyColumn(
-
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-              //  .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .padding(
-                    top = 24.dp, // 👈 Thêm khoảng cách từ trên cùng
-                    bottom = innerPadding.calculateBottomPadding(),
-                    start = 16.dp,
-                    end = 16.dp
-                ),
-          //  scrollBehavior = scrollBehavior,
-
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                ProfileHeader(user = user)
-                Spacer(modifier = Modifier.height(5.dp))
-            }
+            when (uiState) {
+                is AccountUiState.Loading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                is AccountUiState.Success -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                top = 24.dp,
+                                bottom = innerPadding.calculateBottomPadding(),
+                                start = 16.dp,
+                                end = 16.dp
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            ProfileHeader(
+                                user = user,
+                                username = username,
+                                onUsernameChange = { username = it },
+                                avatarUri = avatarUri,
+                                onAvatarClick = {
+                                    permissionLauncher.launch(
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            android.Manifest.permission.READ_MEDIA_IMAGES
+                                        } else {
+                                            android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                        }
+                                    )
+                                },
+                                onSave = {
+                                    if (username.isBlank()) {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Username cannot be empty")
+                                        }
+                                    } else {
+                                        val avatarFile = avatarUri?.let { uri ->
+                                            uriToFile(uri, context)
+                                        }
+                                        viewModel.updateUserProfile(
+                                            username = username,
+                                            email = null,
+                                            password = null,
+                                            avatarFile = avatarFile
+                                        )
+                                    }
+                                },
+                                isUpdatingProfile = isUpdatingProfile
+                            )
+                            Spacer(modifier = Modifier.height(5.dp))
+                        }
 
+                        item {
+                            Text(
+                                text = "Preferences",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+                            )
 
+                            SettingsCard {
+                                SettingsItem(
+                                    icon = Icons.Default.Person,
+                                    title = "Favorite Categories",
+                                    subtitle = "Manage your news preferences",
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            userRepository.updateFavoriteTopics(mapOf("Tech" to 1, "Sports" to 2))
+                                        }
+                                    }
+                                )
+                                SettingsItem(
+                                    icon = Icons.Default.Refresh,
+                                    title = "Reading History",
+                                    subtitle = "Your recently viewed articles",
+                                    onClick = { /* Handle click */ }
+                                )
+                            }
 
-            item {
-                Text(
-                    text = "Preferences",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-                )
-
-                SettingsCard {
-                    SettingsItem(
-                        icon = Icons.Default.Person,
-                        title = "Favorite Categories",
-                        subtitle = "Manage your news preferences",
-                        onClick = {
-                            coroutineScope.launch {
-                                userRepository.updateFavoriteTopics(mapOf("Tech" to 1, "Sports" to 2))
+                            SettingsCard {
+                                SwitchSettingsItem(
+                                    icon = Icons.Outlined.Notifications,
+                                    title = "Notifications",
+                                    checked = notificationsEnabled,
+                                    onCheckedChange = { notificationsEnabled = it },
+                                    showDivider = false
+                                )
                             }
                         }
-                    )
-                    SettingsItem(
-                        icon = Icons.Default.Refresh,
-                        title = "Reading History",
-                        subtitle = "Your recently viewed articles",
-                        onClick = { /* Handle click */ }
-                    )
+
+                        item {
+                            Text(
+                                text = "Support",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+                            )
+
+                            SettingsCard {
+                                SettingsItem(
+                                    icon = Icons.Outlined.Email,
+                                    title = "Contact Us",
+                                    subtitle = "Send feedback or get help",
+                                    onClick = { /* Handle click */ }
+                                )
+                                SettingsItem(
+                                    icon = Icons.Outlined.Info,
+                                    title = "About App",
+                                    subtitle = "Version 1.0.0 • Privacy Policy",
+                                    onClick = { /* Handle click */ },
+                                    showDivider = false
+                                )
+                            }
+                        }
+
+                        item {
+                            SignOutButton(onClick = {
+                                viewModel.signOut()
+                                onSignOut()
+                            })
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                    }
                 }
-
-                SettingsCard {
-                    SwitchSettingsItem(
-                        icon = Icons.Outlined.Notifications,
-                        title = "Notifications",
-                        checked = notificationsEnabled,
-                        onCheckedChange = { notificationsEnabled = it },
-                        showDivider = false
-                    )
+                is AccountUiState.Error -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Warning,
+                            contentDescription = "Error",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = (uiState as AccountUiState.Error).message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
-            }
-
-            item {
-                Text(
-                    text = "Support",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-                )
-
-                SettingsCard {
-                    SettingsItem(
-                        icon = Icons.Outlined.Email,
-                        title = "Contact Us",
-                        subtitle = "Send feedback or get help",
-                        onClick = { /* Handle click */ }
-                    )
-                    SettingsItem(
-                        icon = Icons.Outlined.Info,
-                        title = "About App",
-                        subtitle = "Version 1.0.0 • Privacy Policy",
-                        onClick = { /* Handle click */ },
-                        showDivider = false
-                    )
-                }
-            }
-
-            item {
-                SignOutButton(onClick = onLogout)
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 }
 
 @Composable
-fun ProfileHeader(user: User?) {
+fun ProfileHeader(
+    user: User?,
+    username: String,
+    onUsernameChange: (String) -> Unit,
+    avatarUri: Uri?,
+    onAvatarClick: () -> Unit,
+    onSave: () -> Unit,
+    isUpdatingProfile: Boolean
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -166,59 +297,113 @@ fun ProfileHeader(user: User?) {
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(20.dp)
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(64.dp)
-                    .shadow(
-                        elevation = 4.dp,
-                        shape = CircleShape,
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                    )
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.secondaryContainer
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = CircleShape,
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        )
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                        .clickable { onAvatarClick() }
+                ) {
+                    if (avatarUri != null) {
+                        AsyncImage(
+                            model = avatarUri,
+                            contentDescription = "Avatar",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop,
+                            error = painterResource(id = android.R.drawable.ic_menu_report_image)
+                        )
+                    } else if (!user?.avatar.isNullOrBlank()) {
+                        if (user != null) {
+                            AsyncImage(
+                                model = user.avatar,
+                                contentDescription = "Avatar",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop,
+                                error = painterResource(id = android.R.drawable.ic_menu_report_image)
                             )
+                        }
+                    } else {
+                        Text(
+                            text = user?.username?.take(2)?.uppercase() ?: "NA",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = onUsernameChange,
+                        label = { Text("Username") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        singleLine = true
+                    )
+                    Text(
+                        text = user?.email ?: "Sign in for full access",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Normal
                         ),
-                        shape = CircleShape
+                        modifier = Modifier.padding(top = 8.dp)
                     )
-            ) {
-                Text(
-                    text = user?.username?.take(2)?.uppercase() ?: "NA",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                )
+                }
             }
-            Column(
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onSave,
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                enabled = !isUpdatingProfile
             ) {
-                Text(
-                    text = user?.username ?: "Guest User",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                if (isUpdatingProfile) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
                     )
-                )
-                Text(
-                    text = user?.email ?: "Sign in for full access",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Normal
-                    ),
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                } else {
+                    Text(
+                        text = "Save Changes",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }
             }
         }
     }
@@ -406,5 +591,19 @@ fun SignOutButton(onClick: () -> Unit) {
                 fontWeight = FontWeight.SemiBold
             )
         )
+    }
+}
+
+private fun uriToFile(uri: Uri, context: Context): File? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val file = File(context.cacheDir, "avatar_${System.currentTimeMillis()}.jpg")
+        val outputStream = FileOutputStream(file)
+        inputStream?.copyTo(outputStream)
+        inputStream?.close()
+        outputStream.close()
+        file
+    } catch (e: Exception) {
+        null
     }
 }

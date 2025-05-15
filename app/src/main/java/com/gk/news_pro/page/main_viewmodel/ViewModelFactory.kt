@@ -5,18 +5,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.gk.news_pro.data.repository.HeyGenRepository
 import com.gk.news_pro.data.repository.NewsRepository
+import com.gk.news_pro.data.repository.PostRepository
 import com.gk.news_pro.data.repository.RadioRepository
 import com.gk.news_pro.data.repository.UserRepository
+import com.gk.news_pro.page.screen.account_screen.AccountViewModel
 import com.gk.news_pro.page.screen.auth.LoginViewModel
 import com.gk.news_pro.page.screen.auth.RegisterViewModel
+import com.gk.news_pro.page.screen.create_post.CreatePostViewModel
 import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
 import com.gk.news_pro.page.screen.favorite_screen.FavoriteViewModel
 import com.gk.news_pro.page.screen.home_screen.HomeViewModel
+import com.gk.news_pro.page.screen.news_feed.NewsFeedViewModel
 import com.gk.news_pro.page.screen.radio_screen.RadioViewModel
 
 class ViewModelFactory(
     private val repositories: Any,
-    private val context: Context? = null // Context với giá trị mặc định là null
+    private val context: Context? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -51,8 +55,7 @@ class ViewModelFactory(
                 ) {
                     RadioViewModel(repositories[0] as RadioRepository, repositories[1] as UserRepository) as T
                 } else if (repositories is UserRepository) {
-                    // Allow creating RadioViewModel with just UserRepository for FavoriteScreen
-                    val radioRepo = RadioRepository() // Create a default RadioRepository
+                    val radioRepo = RadioRepository()
                     RadioViewModel(radioRepo, repositories) as T
                 } else {
                     throw IllegalArgumentException("Invalid repositories for RadioViewModel")
@@ -77,6 +80,37 @@ class ViewModelFactory(
                     FavoriteViewModel(repositories) as T
                 } else {
                     throw IllegalArgumentException("Repository must be UserRepository for FavoriteViewModel")
+                }
+            }
+            modelClass.isAssignableFrom(NewsFeedViewModel::class.java) -> {
+                if (repositories is List<*> && repositories.size >= 2 &&
+                    repositories[0] is PostRepository && repositories[1] is UserRepository
+                ) {
+                    NewsFeedViewModel(
+                        postRepository = repositories[0] as PostRepository,
+                        userRepository = repositories[1] as UserRepository
+                    ) as T
+                } else {
+                    throw IllegalArgumentException("Repositories list must contain PostRepository and UserRepository for NewsFeedViewModel")
+                }
+            }
+            modelClass.isAssignableFrom(CreatePostViewModel::class.java) -> {
+                if (repositories is List<*> && repositories.size >= 2 &&
+                    repositories[0] is PostRepository && repositories[1] is UserRepository
+                ) {
+                    CreatePostViewModel(
+                        postRepository = repositories[0] as PostRepository,
+                        userRepository = repositories[1] as UserRepository
+                    ) as T
+                } else {
+                    throw IllegalArgumentException("Repositories list must contain PostRepository and UserRepository for CreatePostViewModel")
+                }
+            }
+            modelClass.isAssignableFrom(AccountViewModel::class.java) -> {
+                if (repositories is UserRepository) {
+                    AccountViewModel(repositories) as T
+                } else {
+                    throw IllegalArgumentException("Repository must be UserRepository for AccountViewModel")
                 }
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

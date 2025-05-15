@@ -25,7 +25,7 @@ class HeyGenRepository(private val context: Context) {
     private val sharedPreferences: SharedPreferences =
         context.getSharedPreferences("HeyGenPrefs", Context.MODE_PRIVATE)
 
-    suspend fun generateVideo(script: String, avatarId: String = "Judy_Nurse_Side_public"): Result {
+    suspend fun generateVideo(script: String, avatarId: String = "Jin_expressive_2024112501"): Result {
         return withContext(Dispatchers.IO) {
             try {
                 if (script.isBlank()) {
