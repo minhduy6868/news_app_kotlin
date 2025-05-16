@@ -34,7 +34,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -320,7 +319,6 @@ private fun CountryDropdown(
             onValueChange = {},
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(2.dp, RoundedCornerShape(12.dp))
                 .clickable { expanded = true },
             label = { Text("Quốc gia", style = MaterialTheme.typography.bodyMedium) },
             readOnly = true,
@@ -430,7 +428,6 @@ private fun TagPill(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .height(32.dp)
-            .shadow(if (isSelected) 2.dp else 0.dp, RoundedCornerShape(16.dp))
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { if (isSelected) onClick() },
@@ -480,7 +477,6 @@ private fun SearchBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .shadow(2.dp, RoundedCornerShape(12.dp))
                 .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
             placeholder = {
                 Text(
@@ -590,8 +586,7 @@ private fun TrendingRadioItem(
     Card(
         modifier = Modifier
             .width(300.dp)
-            .clickable { onClick() }
-            .shadow(4.dp, RoundedCornerShape(16.dp)),
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface

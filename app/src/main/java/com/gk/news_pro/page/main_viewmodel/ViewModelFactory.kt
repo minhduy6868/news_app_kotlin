@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.gk.news_pro.data.local.AppDatabase
+import com.gk.news_pro.data.repository.GeminiRepository
 import com.gk.news_pro.data.repository.HeyGenRepository
 import com.gk.news_pro.data.repository.NewsRepository
 import com.gk.news_pro.data.repository.PostRepository
@@ -35,8 +36,10 @@ class ViewModelFactory(
                 }
             }
             modelClass.isAssignableFrom(ExploreViewModel::class.java) -> {
-                if (repositories is List<*> && repositories.size >= 2 &&
-                    repositories[0] is NewsRepository && repositories[1] is UserRepository
+                if (repositories is List<*> && repositories.size >= 3 &&
+                    repositories[0] is NewsRepository &&
+                    repositories[1] is UserRepository &&
+                    repositories[2] is HeyGenRepository
                 ) {
                     if (context == null) {
                         throw IllegalArgumentException("Context must be provided for ExploreViewModel")
@@ -45,10 +48,12 @@ class ViewModelFactory(
                         newsRepository = repositories[0] as NewsRepository,
                         userRepository = repositories[1] as UserRepository,
                         prefsManager = PrefsManager.getInstance(context),
-                        heyGenRepository = HeyGenRepository(context)
+                        context = context, // Truyền context
+                        geminiRepository = GeminiRepository(), // Khởi tạo GeminiRepository
+                        heyGenRepository = repositories[2] as HeyGenRepository
                     ) as T
                 } else {
-                    throw IllegalArgumentException("Repositories list must contain NewsRepository and UserRepository for ExploreViewModel")
+                    throw IllegalArgumentException("Repositories list must contain NewsRepository, UserRepository, and HeyGenRepository for ExploreViewModel")
                 }
             }
             modelClass.isAssignableFrom(RadioViewModel::class.java) -> {

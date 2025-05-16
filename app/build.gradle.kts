@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.androidx.datastore.core.android)
     implementation(libs.protolite.well.known.types)
     implementation(libs.play.services.cast.tv)
+    implementation(libs.firebase.config.ktx)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
@@ -96,6 +97,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation(libs.firebase.database.ktx)
     implementation(libs.firebase.auth.ktx)
+    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
 
   //  implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
 

@@ -46,7 +46,7 @@ class NewsFeedViewModel(
                 Log.d(TAG, "Loaded ${postList.size} posts")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load posts: ${e.message}", e)
-                _uiState.value = NewsFeedUiState.Error("Failed to load posts: ${e.message}")
+                _uiState.value = NewsFeedUiState.Error("Không thể tải bài đăng: ${e.message}")
             }
         }
     }
@@ -56,11 +56,11 @@ class NewsFeedViewModel(
             try {
                 postRepository.likePost(postId)
                 updateSinglePost(postId)
-                _uiState.value = NewsFeedUiState.Success("Like updated")
+                _uiState.value = NewsFeedUiState.Success("Đã cập nhật lượt thích")
                 Log.d(TAG, "Liked/unliked post: $postId")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to like post: ${e.message}", e)
-                _uiState.value = NewsFeedUiState.Error("Failed to like post: ${e.message}")
+                _uiState.value = NewsFeedUiState.Error("Không thể thích bài đăng: ${e.message}")
             }
         }
     }
@@ -73,11 +73,11 @@ class NewsFeedViewModel(
                     ?: throw IllegalStateException("User data not found")
                 postRepository.addComment(postId, content, userData.username)
                 updateSinglePost(postId)
-                _uiState.value = NewsFeedUiState.Success("Comment added")
+                _uiState.value = NewsFeedUiState.Success("Đã thêm bình luận")
                 Log.d(TAG, "Added comment to post: $postId")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to add comment: ${e.message}", e)
-                _uiState.value = NewsFeedUiState.Error("Failed to add comment: ${e.message}")
+                _uiState.value = NewsFeedUiState.Error("Không thể thêm bình luận: ${e.message}")
             }
         }
     }
@@ -97,7 +97,7 @@ class NewsFeedViewModel(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update post: ${e.message}", e)
-                _uiState.value = NewsFeedUiState.Error("Failed to update post: ${e.message}")
+                _uiState.value = NewsFeedUiState.Error("Không thể cập nhật bài đăng: ${e.message}")
             }
         }
     }

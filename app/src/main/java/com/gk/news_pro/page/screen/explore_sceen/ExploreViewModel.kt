@@ -1,23 +1,35 @@
 package com.gk.news_pro.page.screen.explore_sceen
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gk.news_pro.MainActivity
+import com.gk.news_pro.R
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.GeminiRepository
 import com.gk.news_pro.data.repository.HeyGenRepository
 import com.gk.news_pro.data.repository.NewsRepository
 import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.main_viewmodel.PrefsManager
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class ExploreViewModel(
     private val newsRepository: NewsRepository,
     private val userRepository: UserRepository,
     private val prefsManager: PrefsManager,
+    private val context: Context,
     private val geminiRepository: GeminiRepository = GeminiRepository(),
     private val heyGenRepository: HeyGenRepository
 ) : ViewModel() {
@@ -43,12 +55,13 @@ class ExploreViewModel(
     private val _latestVideoUrl = MutableStateFlow<String?>(null)
     val latestVideoUrl: StateFlow<String?> = _latestVideoUrl
 
+    private var notificationSent = false
+
     val categories = listOf(
         "general", "business", "entertainment", "health",
         "science", "sports", "technology"
     )
 
-    // Default video URL for testing
     private val defaultVideoUrl = "https://files2.heygen.ai/aws_pacific/avatar_tmp/9126811df9534fae9d242898dbc51bb7/902a481e7ac742e29757e76bfd2e4424.mp4?Expires=1747673557&Signature=IeYKG2te0uqKcGsgX5gfB6qH29LKUt8thmDV-MXpepcrcaxUJNO55w7Ojh-9o84wxLSf3SJou~vHHOliBFV-PMrBElRVVFQgAyop7oRODIoIYhNyRPaBvlqeDvtZys-6hBNdV5d6vyWzImidZWNDUneU71C~49LZZhNn8CLc1eMNNSSEjP8HRKdG0mB1bbtkBJZHqBdeETFjpRtpeUzw6cKMx91pBbgD9CMxKo~bW~mH~PGunrjR1SwreNrKVJWYnbPwVQUXxUd4LLFLlEYTTQxKiY~0zZ2QPqJC9IIaf1gG5AtKwqJWTAUvDRr18AAb0nP0P1vcEOKPMh9eviliCA__&Key-Pair-Id=K38HBHX5LX3X2H"
 
     init {
@@ -56,6 +69,52 @@ class ExploreViewModel(
         fetchTrendingNews()
         loadBookmarkedNews()
         checkPendingVideo()
+    }
+
+    private suspend fun sendPushNotification(videoUrl: String) {
+        try {
+            val token = FirebaseMessaging.getInstance().token.await()
+            Log.d("ExploreViewModel", "FCM Token: $token")
+
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "video_notification_channel"
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    "Thông Báo Video",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Thông báo khi video tóm tắt hoàn tất"
+                }
+                notificationManager.createNotificationChannel(channel)
+                Log.d("ExploreViewModel", "Đã tạo Notification Channel: $channelId")
+            }
+
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notification = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(R.drawable.logo)
+                .setContentTitle("Video Tóm Tắt Sẵn Sàng")
+                .setContentText("Video tóm tắt tin tức mới đã được tạo!")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .build()
+
+            notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+            Log.d("ExploreViewModel", "Thông báo cục bộ đã được hiển thị cho video: $videoUrl")
+        } catch (e: Exception) {
+            Log.e("ExploreViewModel", "Lỗi khi tạo thông báo cục bộ: ${e.message}", e)
+        }
     }
 
     fun checkAndGenerateDailyVideo() {
@@ -108,14 +167,18 @@ class ExploreViewModel(
                         Log.e("ExploreViewModel", "Error generating daily video, attempt ${attempt + 1}: ${e.message}", e)
                         if (attempt == 2) {
                             _videoScriptState.value = VideoScriptState.Error("Lỗi khi tạo video: ${e.message}")
+                            val fallbackUrl = prefsManager.getLastSuccessfulVideoUrl() ?: defaultVideoUrl
+                            _latestVideoUrl.value = fallbackUrl
+                            _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = fallbackUrl)
                         }
                         delay(1000L)
                     }
                 }
             } else {
                 Log.d("ExploreViewModel", "Daily video already generated today")
-                _latestVideoUrl.value = defaultVideoUrl
-                _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = defaultVideoUrl)
+                val fallbackUrl = prefsManager.getLastSuccessfulVideoUrl() ?: defaultVideoUrl
+                _latestVideoUrl.value = fallbackUrl
+                _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = fallbackUrl)
             }
         }
     }
@@ -136,24 +199,43 @@ class ExploreViewModel(
 
     suspend fun checkVideoStatusAfterDelay(videoId: String) {
         Log.d("ExploreViewModel", "Checking video status with delay for video_id: $videoId")
-        delay(3 * 60 * 1000L) // Wait 3 minutes
+        delay(3 * 60 * 1000L)
         checkVideoStatus(videoId)
     }
 
     private fun checkVideoStatusPeriodically(videoId: String) {
         viewModelScope.launch {
-            repeat(20) { attempt ->
+            repeat(30) { attempt ->
                 Log.d("ExploreViewModel", "Checking video status periodically, attempt ${attempt + 1}, video_id: $videoId")
                 checkVideoStatus(videoId)
                 if (_videoScriptState.value !is VideoScriptState.Processing) return@launch
                 delay(30_000L)
             }
             if (_videoScriptState.value is VideoScriptState.Processing) {
-                _videoScriptState.value = VideoScriptState.Error("Video xử lý quá lâu, vui lòng thử lại")
+                _videoScriptState.value = VideoScriptState.Error("Video xử lý quá lâu, thử lại sau")
                 Log.e("ExploreViewModel", "Video processing timed out for video_id: $videoId")
-                _latestVideoUrl.value = defaultVideoUrl
-                _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = defaultVideoUrl)
+                val lastUrl = prefsManager.getLastSuccessfulVideoUrl()
+                val fallbackUrl = if (lastUrl != null && isVideoUrlValid(lastUrl)) {
+                    lastUrl
+                } else {
+                    defaultVideoUrl
+                }
+                _latestVideoUrl.value = fallbackUrl
+                _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = fallbackUrl)
+                delay(30 * 60 * 1000L)
+                checkAndGenerateDailyVideo()
             }
+        }
+    }
+
+    private suspend fun isVideoUrlValid(url: String): Boolean {
+        return try {
+            val expires = url.substringAfter("Expires=").substringBefore("&").toLongOrNull()
+            val currentTime = System.currentTimeMillis() / 1000
+            expires != null && currentTime <= expires
+        } catch (e: Exception) {
+            Log.e("ExploreViewModel", "Error validating video URL: ${e.message}")
+            false
         }
     }
 
@@ -173,10 +255,15 @@ class ExploreViewModel(
                         checkAndGenerateDailyVideo()
                     } else {
                         _latestVideoUrl.value = result
+                        prefsManager.saveLastSuccessfulVideoUrl(result)
                         _videoScriptState.value = VideoScriptState.Success(
                             script = _videoScriptState.value.let { if (it is VideoScriptState.Processing) it.script else "" },
                             videoUrl = result
                         )
+                        if (!notificationSent && result != prefsManager.getLastSuccessfulVideoUrl()) {
+                            sendPushNotification(result)
+                            notificationSent = true
+                        }
                         prefsManager.clearVideoId()
                         Log.d("ExploreViewModel", "Video completed, URL: $result")
                     }
@@ -191,15 +278,17 @@ class ExploreViewModel(
                 else -> {
                     Log.e("ExploreViewModel", "Error checking video status: $result")
                     _videoScriptState.value = VideoScriptState.Error(result)
-                    _latestVideoUrl.value = defaultVideoUrl
-                    _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = defaultVideoUrl)
+                    val fallbackUrl = prefsManager.getLastSuccessfulVideoUrl() ?: defaultVideoUrl
+                    _latestVideoUrl.value = fallbackUrl
+                    _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = fallbackUrl)
                 }
             }
         } catch (e: Exception) {
             Log.e("ExploreViewModel", "Exception checking video status: ${e.message}", e)
             _videoScriptState.value = VideoScriptState.Error("Lỗi khi kiểm tra trạng thái video: ${e.message}")
-            _latestVideoUrl.value = defaultVideoUrl
-            _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = defaultVideoUrl)
+            val fallbackUrl = prefsManager.getLastSuccessfulVideoUrl() ?: defaultVideoUrl
+            _latestVideoUrl.value = fallbackUrl
+            _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = fallbackUrl)
         }
     }
 
@@ -353,23 +442,25 @@ class ExploreViewModel(
                     is HeyGenRepository.Result.Success -> {
                         prefsManager.saveVideoId(result.videoId)
                         prefsManager.saveVideoCreationTime(System.currentTimeMillis())
-                        _videoScriptState.value = VideoScriptState.Processing(result.script)
+                        _videoScriptState.value = VideoScriptState.Processing(script)
                         Log.d("ExploreViewModel", "Video creation started, video_id: ${result.videoId}")
-                        delay(3 * 60 * 1000L) // Wait 3 minutes
+                        delay(3 * 60 * 1000L)
                         checkVideoStatus(result.videoId)
                     }
                     is HeyGenRepository.Result.Error -> {
                         Log.e("ExploreViewModel", "Video generation failed: ${result.message}")
                         _videoScriptState.value = VideoScriptState.Error(result.message)
-                        _latestVideoUrl.value = defaultVideoUrl
-                        _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = defaultVideoUrl)
+                        val fallbackUrl = prefsManager.getLastSuccessfulVideoUrl() ?: defaultVideoUrl
+                        _latestVideoUrl.value = fallbackUrl
+                        _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = fallbackUrl)
                     }
                 }
             } catch (e: Exception) {
                 Log.e("ExploreViewModel", "Error generating video: ${e.message}", e)
                 _videoScriptState.value = VideoScriptState.Error(e.message ?: "Lỗi khi tạo video")
-                _latestVideoUrl.value = defaultVideoUrl
-                _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = defaultVideoUrl)
+                val fallbackUrl = prefsManager.getLastSuccessfulVideoUrl() ?: defaultVideoUrl
+                _latestVideoUrl.value = fallbackUrl
+                _videoScriptState.value = VideoScriptState.Success(script = "Default script", videoUrl = fallbackUrl)
             }
         }
     }
@@ -378,6 +469,7 @@ class ExploreViewModel(
         _latestVideoUrl.value = null
         prefsManager.clearVideoId()
         _videoScriptState.value = VideoScriptState.Idle
+        notificationSent = false
         Log.d("ExploreViewModel", "Cleared latest video URL")
     }
 }

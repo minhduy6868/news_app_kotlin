@@ -113,16 +113,16 @@ fun OfflineListNewsScreen(
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            item {
-                                Text(
-                                    text = "Tin tức đã lưu",
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 24.sp
-                                    ),
-                                    modifier = Modifier.padding(bottom = 16.dp)
-                                )
-                            }
+//                            item {
+//                                Text(
+//                                    text = "Tin tức đã lưu",
+//                                    style = MaterialTheme.typography.titleLarge.copy(
+//                                        fontWeight = FontWeight.Bold,
+//                                        fontSize = 24.sp
+//                                    ),
+//                                    modifier = Modifier.padding(bottom = 16.dp)
+//                                )
+//                            }
                             items(savedNews) { newsEntity ->
                                 NewsCard(
                                     news = newsEntity.toNews(),

@@ -29,6 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.GeminiRepository
+import com.gk.news_pro.data.repository.HeyGenRepository
 import com.gk.news_pro.data.repository.NewsRepository
 import com.gk.news_pro.data.repository.PostRepository
 import com.gk.news_pro.data.repository.RadioRepository
@@ -50,18 +51,20 @@ import com.gk.news_pro.page.utils.service.PlaybackState
 import com.gk.news_pro.utils.MediaPlayerManager
 import com.google.ai.client.generativeai.BuildConfig
 import com.google.gson.Gson
-import kotlinx.coroutines.launch
+import com.gk.news_pro.page.screen.about_screen.AboutScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Radio : Screen("radio", "Radio", Icons.Filled.PlayArrow)
-    object Explore : Screen("explore", "News", Icons.Filled.DateRange)
-    object NewsFeed : Screen("news_feed", "News Feed", Icons.Filled.Share)
-    object OfflineNews : Screen("offline_news", "Offline News", Icons.Filled.DateRange)
-    object Favorite : Screen("favorite", "Favorite", Icons.Filled.Favorite)
-    object Account : Screen("account", "Account", Icons.Filled.AccountCircle)
-    object NewsDetail : Screen("news_detail/{newsJson}", "News Detail") {
+    object Explore : Screen("explore", "Tin Tức", Icons.Filled.DateRange)
+    object NewsFeed : Screen("news_feed", "Bảng Tin", Icons.Filled.Share)
+    object OfflineNews : Screen("offline_news", "Tin Ngoại Tuyến", Icons.Filled.DateRange)
+    object Favorite : Screen("favorite", "Yêu Thích", Icons.Filled.Favorite)
+    object Account : Screen("account", "Tài Khoản", Icons.Filled.AccountCircle)
+    object About : Screen("about", "Giới Thiệu")
+    object NewsDetail : Screen("news_detail/{newsJson}", "Chi Tiết Tin Tức") {
         fun createRoute(newsJson: String): String {
             val encodedJson = URLEncoder.encode(newsJson, "UTF-8")
             return "news_detail/$encodedJson"
@@ -76,18 +79,19 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
 fun AppNavigation() {
     val navController = rememberNavController()
     val bottomNavItems = listOf(Screen.Explore, Screen.NewsFeed, Screen.Radio, Screen.Account)
+    val context = LocalContext.current
     val newsRepository = NewsRepository()
     val geminiRepository = GeminiRepository()
     val userRepository = UserRepository()
     val radioRepository = RadioRepository()
     val postRepository = PostRepository()
+    val heyGenRepository = HeyGenRepository(context)
     val radioViewModel: RadioViewModel = viewModel(
         factory = ViewModelFactory(listOf(radioRepository, userRepository))
     )
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
-    val startDestination = Screen.Explore.route // Changed from Screen.Radio to Screen.Explore
-    val context = LocalContext.current
+    val startDestination = Screen.Explore.route
     val gson = Gson()
 
     LaunchedEffect(Unit) {
@@ -173,7 +177,7 @@ fun AppNavigation() {
                 composable(Screen.Explore.route) {
                     val exploreViewModel: ExploreViewModel = viewModel(
                         factory = ViewModelFactory(
-                            repositories = listOf(newsRepository, userRepository),
+                            repositories = listOf(newsRepository, userRepository, heyGenRepository),
                             context = context
                         )
                     )
@@ -252,8 +256,17 @@ fun AppNavigation() {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = false }
                                 launchSingleTop = true
                             }
+                        },
+                        onNavigateToAboutScreen = {
+                            navController.navigate(Screen.About.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                                launchSingleTop = true
+                            }
                         }
                     )
+                }
+                composable(Screen.About.route) {
+                    AboutScreen(navController = navController)
                 }
                 composable(
                     route = Screen.NewsDetail.route,
@@ -300,7 +313,7 @@ fun AppNavigation() {
                                 onClick = { navController.navigate(Screen.Explore.route) },
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Quay lại News")
+                                Text("Quay lại Tin Tức")
                             }
                         }
                     }

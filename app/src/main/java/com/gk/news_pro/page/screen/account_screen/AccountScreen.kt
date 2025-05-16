@@ -21,11 +21,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -42,6 +42,7 @@ import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
+import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +51,7 @@ fun AccountScreen(
     onSignOut: () -> Unit,
     onNavigateToOfflineNews: () -> Unit,
     onNavigateToFavoriteScreen: () -> Unit,
+    onNavigateToAboutScreen: () -> Unit,
     context: Context = LocalContext.current,
     viewModel: AccountViewModel = viewModel(
         factory = ViewModelFactory(
@@ -68,6 +70,7 @@ fun AccountScreen(
     val isUpdatingProfile by viewModel.isUpdatingProfile.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val uriHandler = LocalUriHandler.current
 
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -310,13 +313,26 @@ fun AccountScreen(
                             icon = Icons.Outlined.Email,
                             title = "Liên hệ",
                             subtitle = "Gửi phản hồi hoặc nhận trợ giúp",
-                            onClick = { /* Handle click */ }
+                            onClick = {
+                                try {
+                                    val emailUri = Uri.parse(
+                                        "mailto:duynm.23it@gmail.com?subject=${
+                                            URLEncoder.encode("Gửi phản hồi từ app News Pro", "UTF-8")
+                                        }"
+                                    )
+                                    uriHandler.openUri(emailUri.toString())
+                                } catch (e: Exception) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Không tìm thấy ứng dụng email")
+                                    }
+                                }
+                            }
                         )
                         SettingsItem(
                             icon = Icons.Outlined.Info,
                             title = "Về ứng dụng",
                             subtitle = "Phiên bản 1.0.0 • Chính sách bảo mật",
-                            onClick = { /* Handle click */ },
+                            onClick = { onNavigateToAboutScreen() },
                             showDivider = false
                         )
                     }
@@ -347,12 +363,7 @@ fun ProfileHeader(
 ) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 1.dp,
-                shape = RoundedCornerShape(10.dp),
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-            ),
+            .fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -371,11 +382,6 @@ fun ProfileHeader(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .size(40.dp)
-                        .shadow(
-                            elevation = 2.dp,
-                            shape = CircleShape,
-                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                        )
                         .background(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
@@ -486,12 +492,7 @@ fun SettingsCard(
 ) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = 1.dp,
-                shape = RoundedCornerShape(10.dp),
-                spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-            ),
+            .fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow

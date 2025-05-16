@@ -12,6 +12,7 @@ class PrefsManager private constructor(context: Context) {
         private const val KEY_IS_FIRST_LAUNCH = "is_first_launch"
         private const val KEY_LAST_VIDEO_CREATION_TIME = "last_video_creation_time"
         private const val KEY_VIDEO_ID = "daily_video_id"
+        private const val KEY_LAST_SUCCESSFUL_VIDEO_URL = "last_successful_video_url"
 
         @Volatile
         private var instance: PrefsManager? = null
@@ -23,13 +24,11 @@ class PrefsManager private constructor(context: Context) {
         }
     }
 
-    fun  shouldCreateDailyVideo(): Boolean {
-         //Comment logic kiểm tra thời gian để test
-         val lastCreationTime = sharedPreferences.getLong(KEY_LAST_VIDEO_CREATION_TIME, 0L)
-         val currentTime = System.currentTimeMillis()
-         val oneDayInMillis = 24 * 60 * 60 * 1000L // 1 ngày
-         return lastCreationTime == 0L || (currentTime - lastCreationTime) >= oneDayInMillis
-       // return true // Luôn trả về true để bỏ qua kiểm tra thời gian
+    fun shouldCreateDailyVideo(): Boolean {
+        val lastCreationTime = sharedPreferences.getLong(KEY_LAST_VIDEO_CREATION_TIME, 0L)
+        val currentTime = System.currentTimeMillis()
+        val oneDayInMillis = 24 * 60 * 60 * 1000L
+        return lastCreationTime == 0L || (currentTime - lastCreationTime) >= oneDayInMillis
     }
 
     fun saveVideoCreationTime(time: Long) {
@@ -51,8 +50,18 @@ class PrefsManager private constructor(context: Context) {
     fun clearVideoId() {
         sharedPreferences.edit()
             .remove(KEY_VIDEO_ID)
-            .remove(KEY_LAST_VIDEO_CREATION_TIME) // Xóa cả thời gian tạo để đồng bộ
+            .remove(KEY_LAST_VIDEO_CREATION_TIME)
             .apply()
+    }
+
+    fun saveLastSuccessfulVideoUrl(url: String) {
+        sharedPreferences.edit()
+            .putString(KEY_LAST_SUCCESSFUL_VIDEO_URL, url)
+            .apply()
+    }
+
+    fun getLastSuccessfulVideoUrl(): String? {
+        return sharedPreferences.getString(KEY_LAST_SUCCESSFUL_VIDEO_URL, null)
     }
 
     fun getLong(key: String, defaultValue: Long): Long {
