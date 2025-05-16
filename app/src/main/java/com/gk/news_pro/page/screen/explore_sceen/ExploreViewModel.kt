@@ -1,12 +1,15 @@
 package com.gk.news_pro.page.screen.explore_sceen
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -79,6 +82,14 @@ class ExploreViewModel(
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channelId = "video_notification_channel"
 
+            // Kiểm tra quyền thông báo trên Android 13+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    Log.e("ExploreViewModel", "Quyền POST_NOTIFICATIONS chưa được cấp, không thể gửi thông báo")
+                    return
+                }
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(
                     channelId,
@@ -93,6 +104,7 @@ class ExploreViewModel(
 
             val intent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                putExtra("video_url", videoUrl) // Thêm URL video vào intent
             }
             val pendingIntent = PendingIntent.getActivity(
                 context,
@@ -111,14 +123,15 @@ class ExploreViewModel(
                 .build()
 
             notificationManager.notify(System.currentTimeMillis().toInt(), notification)
-            Log.d("ExploreViewModel", "Thông báo cục bộ đã được hiển thị cho video: $videoUrl")
+            Log.d("ExploreViewModel", "Thông báo cục bộ đã được gửi cho video: $videoUrl")
         } catch (e: Exception) {
-            Log.e("ExploreViewModel", "Lỗi khi tạo thông báo cục bộ: ${e.message}", e)
+            Log.e("ExploreViewModel", "Lỗi khi gửi thông báo cục bộ: ${e.message}", e)
         }
     }
 
     fun checkAndGenerateDailyVideo() {
         viewModelScope.launch {
+            notificationSent = false // Đặt lại notificationSent khi bắt đầu tạo video mới
             val videoId = prefsManager.getVideoId()
             if (videoId != null) {
                 Log.d("ExploreViewModel", "Existing video_id found: $videoId, checking status immediately")
@@ -260,9 +273,13 @@ class ExploreViewModel(
                             script = _videoScriptState.value.let { if (it is VideoScriptState.Processing) it.script else "" },
                             videoUrl = result
                         )
-                        if (!notificationSent && result != prefsManager.getLastSuccessfulVideoUrl()) {
+                        // Gửi thông báo nếu chưa gửi
+                        if (!notificationSent) {
+                            Log.d("ExploreViewModel", "Preparing to send notification. Last successful URL: ${prefsManager.getLastSuccessfulVideoUrl()}")
                             sendPushNotification(result)
                             notificationSent = true
+                        } else {
+                            Log.d("ExploreViewModel", "Notification already sent for this video, skipping")
                         }
                         prefsManager.clearVideoId()
                         Log.d("ExploreViewModel", "Video completed, URL: $result")
@@ -319,7 +336,7 @@ class ExploreViewModel(
                 _newsState.value = ExploreUiState.Success(response.results ?: emptyList())
                 Log.d("ExploreViewModel", "Fetched ${response.results?.size ?: 0} general news")
             } catch (e: Exception) {
-                _newsState.value = ExploreUiState.Error(e.message ?: "Failed to load news")
+                _newsState.value = ExploreUiState.Error(e.message ?: "Không thể tải tin tức")
                 Log.e("ExploreViewModel", "Error fetching general news: ${e.message}", e)
             }
         }
@@ -352,7 +369,7 @@ class ExploreViewModel(
                 _newsState.value = ExploreUiState.Success(response.results ?: emptyList())
                 Log.d("ExploreViewModel", "Fetched ${response.results?.size ?: 0} news for category $category")
             } catch (e: Exception) {
-                _newsState.value = ExploreUiState.Error(e.message ?: "Failed to load news")
+                _newsState.value = ExploreUiState.Error(e.message ?: "Không thể tải tin tức")
                 Log.e("ExploreViewModel", "Error fetching news for category $category: ${e.message}", e)
             }
         }
@@ -369,7 +386,7 @@ class ExploreViewModel(
                 _newsState.value = ExploreUiState.Success(response.results ?: emptyList())
                 Log.d("ExploreViewModel", "Fetched ${response.results?.size ?: 0} news for query $query")
             } catch (e: Exception) {
-                _newsState.value = ExploreUiState.Error(e.message ?: "Failed to search news")
+                _newsState.value = ExploreUiState.Error(e.message ?: "Không thể tìm kiếm tin tức")
                 Log.e("ExploreViewModel", "Error searching news for query $query: ${e.message}", e)
             }
         }
@@ -425,6 +442,7 @@ class ExploreViewModel(
             return
         }
         _videoScriptState.value = VideoScriptState.Loading
+        notificationSent = false // Đặt lại notificationSent khi tạo video mới
         viewModelScope.launch {
             try {
                 Log.d("ExploreViewModel", "Generating script for ${newsList.size} news items")
@@ -469,7 +487,7 @@ class ExploreViewModel(
         _latestVideoUrl.value = null
         prefsManager.clearVideoId()
         _videoScriptState.value = VideoScriptState.Idle
-        notificationSent = false
+        notificationSent = false // Đặt lại notificationSent khi xóa video
         Log.d("ExploreViewModel", "Cleared latest video URL")
     }
 }
