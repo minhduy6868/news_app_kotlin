@@ -1,5 +1,6 @@
 package com.gk.news_pro.page.screen.auth
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gk.news_pro.data.repository.UserRepository
@@ -45,6 +46,25 @@ class LoginViewModel(
                 }
             } catch (e: Exception) {
                 _uiState.value = LoginUiState.Error(e.message ?: "Đăng nhập thất bại")
+            }
+        }
+    }
+
+    fun signInWithGoogle(idToken: String) {
+        Log.d("LoginViewModel", "signInWithGoogle called with idToken=$idToken")
+        _uiState.value = LoginUiState.Loading
+        viewModelScope.launch {
+            try {
+                val user = repository.signInWithGoogle(idToken)
+                Log.d("LoginViewModel", "signInWithGoogle result: user=$user")
+                if (user != null) {
+                    _uiState.value = LoginUiState.Success
+                } else {
+                    _uiState.value = LoginUiState.Error("Đăng nhập Google thất bại")
+                }
+            } catch (e: Exception) {
+                Log.e("LoginViewModel", "signInWithGoogle failed: ${e.message}", e)
+                _uiState.value = LoginUiState.Error(e.message ?: "Đăng nhập Google thất bại")
             }
         }
     }

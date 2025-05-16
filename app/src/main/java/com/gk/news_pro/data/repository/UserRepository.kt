@@ -5,6 +5,7 @@ import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.model.RadioStation
 import com.gk.news_pro.data.model.User
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.tasks.await
 
 class UserRepository(
@@ -57,6 +58,33 @@ class UserRepository(
         } catch (e: Exception) {
             Log.e(TAG, "loginUser: Đăng nhập thất bại: ${e.message}", e)
             throw Exception("Đăng nhập thất bại: ${e.message}")
+        }
+    }
+
+    suspend fun signInWithGoogle(idToken: String): User? {
+        Log.d(TAG, "signInWithGoogle: Starting with idToken=$idToken")
+        try {
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            Log.d(TAG, "signInWithGoogle: Credential created")
+            val result = auth.signInWithCredential(credential).await()
+            Log.d(TAG, "signInWithGoogle: Sign-in result: ${result.user}")
+            val firebaseUser = result.user
+            if (firebaseUser != null) {
+                Log.d(TAG, "signInWithGoogle: Success, UID: ${firebaseUser.uid}, Email: ${firebaseUser.email}")
+                val user = User(
+                    email = firebaseUser.email ?: "",
+                    username = firebaseUser.displayName ?: "Google User",
+                    password = ""
+                )
+                firebaseService.addUser(firebaseUser.uid, user)
+                return user
+            } else {
+                Log.e(TAG, "signInWithGoogle: Firebase user is null")
+                return null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "signInWithGoogle: Failed: ${e.message}", e)
+            throw Exception("Đăng nhập Google thất bại: ${e.message}")
         }
     }
 

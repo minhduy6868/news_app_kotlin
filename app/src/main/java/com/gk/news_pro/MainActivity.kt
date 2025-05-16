@@ -12,11 +12,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.gk.news_pro.page.main_viewmodel.PrefsManager
 import com.gk.news_pro.page.navigation.AppNavigation
 import com.gk.news_pro.page.screen.splash_screen.SplashScreen
 import com.gk.news_pro.ui.theme.NewsProTheme
 import com.loc.newsapp.screen.onboarding_screen.OnBoardingScreen
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -34,44 +36,53 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
 fun AppEntryPoint() {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val prefsManager = PrefsManager.getInstance(context)
     val coroutineScope = rememberCoroutineScope()
-    val showSplash = remember { mutableStateOf(true) }
-    val showOnboarding = remember { mutableStateOf(false) }
-
-    // Check if it's the first launch
-    LaunchedEffect(Unit) {
-        val isFirstLaunch = prefsManager.isFirstLaunch()
-        if (isFirstLaunch) {
-            showOnboarding.value = true
-            // Mark first launch as complete
-            coroutineScope.launch {
-                prefsManager.setFirstLaunchCompleted()
+    val screenState = remember {
+        mutableStateOf(
+            when {
+                prefsManager.isFirstLaunch() -> ScreenState.Onboarding
+                else -> ScreenState.Splash
             }
+        )
+    }
+
+    // Handle splash screen timeout
+    LaunchedEffect(screenState.value) {
+        if (screenState.value == ScreenState.Splash) {
+            // Simulate a minimum splash duration (2 seconds)
+            delay(2000)
+            screenState.value = ScreenState.Navigation
         }
     }
 
-    when {
-        showSplash.value -> {
+    when (screenState.value) {
+        ScreenState.Splash -> {
             SplashScreen(
                 onSplashFinish = {
-                    showSplash.value = false
+                    screenState.value = ScreenState.Navigation
                 }
             )
         }
-        showOnboarding.value -> {
+        ScreenState.Onboarding -> {
             OnBoardingScreen(
                 onFinish = {
-                    showOnboarding.value = false
+                    coroutineScope.launch {
+                        prefsManager.setFirstLaunchCompleted()
+                        screenState.value = ScreenState.Navigation
+                    }
                 }
             )
         }
-        else -> {
+        ScreenState.Navigation -> {
             AppNavigation()
         }
     }
+}
+
+private enum class ScreenState {
+    Splash, Onboarding, Navigation
 }

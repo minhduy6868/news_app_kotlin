@@ -36,14 +36,14 @@ import com.gk.news_pro.R
 import kotlinx.coroutines.launch
 
 object Dimens {
-    val MediumPadding1 = 24.dp
-    val MediumPadding2 = 24.dp // Giảm từ 32.dp để thu hẹp khoảng trắng
-    val IndicatorSize = 14.dp // Tăng nhẹ để nổi bật hơn
+    val MediumPadding1 = 16.dp // Reduced from 24.dp to minimize white space
+    val MediumPadding2 = 16.dp // Reduced from 24.dp to minimize white space
+    val IndicatorSize = 14.dp
     val ButtonHeight = 48.dp
     val ButtonMinWidth = 100.dp
     val MaxContentWidth = 800.dp
     val ImageAspectRatio = 16f / 9f
-    val ImageHeightFraction = 0.6f // Tăng từ 0.45f để hình ảnh lớn hơn
+    val ImageHeightFraction = 0.5f // Adjusted to balance image size
 }
 
 data class Page(
@@ -77,7 +77,7 @@ fun OnBoardingScreen(onFinish: () -> Unit) {
     val screenWidth = configuration.screenWidthDp.dp
     val isLargeScreen = screenWidth > 600.dp
     val paddingHorizontal = if (isLargeScreen) Dimens.MediumPadding2 * 1.5f else Dimens.MediumPadding2
-    val fontScale = if (isLargeScreen) 1.3f else 1f // Tăng fontScale để chữ lớn hơn trên màn hình lớn
+    val fontScale = if (isLargeScreen) 1.2f else 1f // Slightly reduced to balance text size
 
     Box(
         modifier = Modifier
@@ -103,7 +103,8 @@ fun OnBoardingScreen(onFinish: () -> Unit) {
                 .align(Alignment.Center)
                 .padding(horizontal = paddingHorizontal)
                 .navigationBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween // Distribute content evenly
         ) {
             val pagerState = rememberPagerState(pageCount = { pages.size })
             val scope = rememberCoroutineScope()
@@ -120,8 +121,8 @@ fun OnBoardingScreen(onFinish: () -> Unit) {
 
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxHeight(0.85f), // Giảm weight để kiểm soát chiều cao
-                pageSpacing = 16.dp,
+                modifier = Modifier.weight(1f), // Use weight to fill available space
+                pageSpacing = 12.dp, // Reduced from 16.dp to tighten layout
                 flingBehavior = PagerDefaults.flingBehavior(
                     state = pagerState,
                     snapAnimationSpec = spring(stiffness = 400f)
@@ -237,28 +238,29 @@ fun OnBoardingPage(
     isLargeScreen: Boolean,
     fontScale: Float
 ) {
-    val titleFontSize = (22.sp * fontScale) // Tăng từ 20.sp để tiêu đề nổi bật hơn
-    val descriptionFontSize = (16.sp * fontScale) // Tăng từ 14.sp để mô tả dễ đọc hơn
+    val titleFontSize = (20.sp * fontScale) // Slightly reduced for balance
+    val descriptionFontSize = (14.sp * fontScale) // Slightly reduced for balance
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(vertical = Dimens.MediumPadding1),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center // Center content vertically
     ) {
         Image(
             painter = painterResource(id = page.img),
             contentDescription = null,
-            contentScale = ContentScale.Crop, // Chuyển sang Crop để lấp đầy khung
+            contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f) // Use weight to center and scale image
                 .aspectRatio(Dimens.ImageAspectRatio)
-                .fillMaxHeight(Dimens.ImageHeightFraction)
                 .clip(RoundedCornerShape(16.dp))
                 .shadow(8.dp, RoundedCornerShape(16.dp))
         )
 
-        Spacer(modifier = Modifier.height(Dimens.MediumPadding1)) // Giảm từ MediumPadding2 để thu hẹp khoảng trắng
+        Spacer(modifier = Modifier.height(12.dp)) // Reduced from MediumPadding1
 
         Text(
             text = page.title,
@@ -271,7 +273,7 @@ fun OnBoardingPage(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
-        Spacer(modifier = Modifier.height(8.dp)) // Giảm từ 12.dp để thu hẹp khoảng trắng
+        Spacer(modifier = Modifier.height(6.dp)) // Reduced from 8.dp
 
         Text(
             text = page.description,
@@ -283,6 +285,8 @@ fun OnBoardingPage(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+
+        Spacer(modifier = Modifier.weight(0.5f)) // Add flexible spacer to push content up
     }
 }
 

@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.firebase.database.ktx)
     implementation(libs.firebase.auth.ktx)
     implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
 
   //  implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
 

@@ -467,7 +467,7 @@ fun PostCard(
                 )
             }
 
-            // Comments
+            // Comments with Divider
             AnimatedVisibility(
                 visible = showAllComments || post.comments.isNotEmpty(),
                 enter = fadeIn() + expandVertically(),
@@ -477,6 +477,15 @@ fun PostCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    // Thanh mờ phân tách
+                    Divider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                        thickness = 1.dp
+                    )
+
                     val commentsToShow = if (showAllComments) post.comments.values else post.comments.values.take(2)
                     commentsToShow.forEach { comment ->
                         Row(

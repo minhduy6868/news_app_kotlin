@@ -1,5 +1,8 @@
 package com.gk.news_pro.page.screen.auth
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,9 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +19,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -28,11 +30,17 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gk.news_pro.R
 import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.GoogleApiAvailability
 import kotlinx.coroutines.launch
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +59,115 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val TAG = "LoginScreen"
+
+    // Lấy Activity từ Context
+    val activity = (context as? Activity) ?: run {
+        LaunchedEffect(Unit) {
+            snackbarHostState.showSnackbar(
+                message = "Không tìm thấy Activity, vui lòng thử lại",
+                duration = SnackbarDuration.Long
+            )
+        }
+        return@LoginScreen
+    }
+
+    // Kiểm tra Google Play Services
+    val googleApiAvailability = GoogleApiAvailability.getInstance()
+    val playServicesAvailable = googleApiAvailability.isGooglePlayServicesAvailable(context) == com.google.android.gms.common.ConnectionResult.SUCCESS
+
+    LaunchedEffect(playServicesAvailable) {
+        if (!playServicesAvailable) {
+            snackbarHostState.showSnackbar(
+                message = "Google Play Services không khả dụng. Vui lòng kiểm tra thiết bị.",
+                duration = SnackbarDuration.Long
+            )
+        }
+    }
+
+    // Google Sign-In launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        Log.d(TAG, "Google Sign-In result: resultCode=${result.resultCode}, data=${result.data}")
+        try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            val account = task.getResult(ApiException::class.java)
+            account.idToken?.let { idToken ->
+                Log.d(TAG, "Google ID Token: $idToken")
+                viewModel.signInWithGoogle(idToken)
+            } ?: run {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Không lấy được ID token từ Google",
+                        duration = SnackbarDuration.Long
+                    )
+                }
+            }
+        } catch (e: ApiException) {
+            Log.e(TAG, "Google Sign-In failed: statusCode=${e.statusCode}, message=${e.message}", e)
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Đăng nhập Google thất bại: ${e.statusCode} - ${e.message}",
+                    duration = SnackbarDuration.Long
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error: ${e.message}", e)
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Lỗi không xác định: ${e.message}",
+                    duration = SnackbarDuration.Long
+                )
+            }
+        }
+    }
+
+    // Hàm khởi động Google Sign-In
+    fun startGoogleSignIn() {
+        if (!playServicesAvailable) {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Google Play Services không khả dụng",
+                    duration = SnackbarDuration.Long
+                )
+            }
+            return
+        }
+
+        // Kiểm tra trạng thái lifecycle
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            try {
+                Log.d(TAG, "Building GoogleSignInOptions")
+                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestIdToken(activity.getString(R.string.default_web_client_id))
+                    .requestEmail()
+                    .build()
+                Log.d(TAG, "Creating GoogleSignInClient")
+                val googleSignInClient = GoogleSignIn.getClient(activity, gso)
+                Log.d(TAG, "Launching Google Sign-In Intent")
+                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start Google Sign-In: ${e.message}", e)
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Lỗi khởi tạo Google Sign-In: ${e.message}",
+                        duration = SnackbarDuration.Long
+                    )
+                }
+            }
+        } else {
+            Log.w(TAG, "Activity is not in STARTED state, cannot launch Google Sign-In")
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Không thể khởi động đăng nhập Google: Activity không hoạt động",
+                    duration = SnackbarDuration.Long
+                )
+            }
+        }
+    }
 
     LaunchedEffect(uiState) {
         if (uiState is LoginUiState.Error) {
@@ -238,6 +355,45 @@ fun LoginScreen(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Google Sign-In Button
+                Button(
+                    onClick = { startGoogleSignIn() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .shadow(8.dp, RoundedCornerShape(16.dp)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 8.dp
+                    ),
+                    enabled = playServicesAvailable
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.google),
+                            contentDescription = "Google Logo",
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Đăng nhập với Google",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
