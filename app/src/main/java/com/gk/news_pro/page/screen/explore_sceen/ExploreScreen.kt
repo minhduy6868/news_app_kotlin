@@ -105,27 +105,19 @@ fun ExploreScreen(
                     .padding(innerPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Manual check button
+                // Video title styled like "What's Hot"
                 item {
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                val videoId = prefsManager.getVideoId()
-                                if (videoId != null) {
-                                    viewModel.checkVideoStatusAfterDelay(videoId)
-                                    snackbarHostState.showSnackbar("Đang kiểm tra trạng thái video...")
-                                } else {
-                                    viewModel.checkAndGenerateDailyVideo()
-                                    snackbarHostState.showSnackbar("Đang kiểm tra hoặc tạo video mới...")
-                                }
-                            }
-                        },
+                    Text(
+                        text = "AI Video Tóm Tắt Tin Tức",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontSize = 18.sp
+                        ),
                         modifier = Modifier
-                            .fillMaxWidth()
                             .padding(horizontal = 16.dp)
-                    ) {
-                        Text("Kiểm tra hoặc tạo video")
-                    }
+                            .padding(top = 8.dp)
+                    )
                 }
 
                 // Video display section
@@ -133,7 +125,7 @@ fun ExploreScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(240.dp)
+                            .height(200.dp)
                             .padding(horizontal = 16.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -141,7 +133,7 @@ fun ExploreScreen(
                         when {
                             latestVideoUrl != null -> {
                                 var isVideoError by remember { mutableStateOf(false) }
-                                var isPlaying by remember { mutableStateOf(true) }
+                                var isPlaying by remember { mutableStateOf(false) }
                                 if (isVideoError) {
                                     Column(
                                         modifier = Modifier
@@ -186,12 +178,10 @@ fun ExploreScreen(
                                                     setVideoPath(latestVideoUrl)
                                                     setZOrderOnTop(true)
                                                     setOnPreparedListener {
-                                                        start()
-                                                        isPlaying = true
-                                                        Log.d("VideoView", "Video started playing: $latestVideoUrl")
+                                                        Log.d("VideoView", "Video đã sẵn sàng: $latestVideoUrl")
                                                     }
                                                     setOnErrorListener { _, what, extra ->
-                                                        Log.e("VideoView", "Error playing video: what=$what, extra=$extra")
+                                                        Log.e("VideoView", "Lỗi khi phát video: what=$what, extra=$extra")
                                                         isVideoError = true
                                                         true
                                                     }
@@ -205,7 +195,7 @@ fun ExploreScreen(
                                                 videoViewRef?.let {
                                                     it.stopPlayback()
                                                     videoViewRef = null
-                                                    Log.d("VideoView", "VideoView resources released")
+                                                    Log.d("VideoView", "Tài nguyên VideoView đã được giải phóng")
                                                 }
                                             }
                                         }
@@ -217,7 +207,7 @@ fun ExploreScreen(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.PlayArrow,
-                                                contentDescription = "Play",
+                                                contentDescription = "Phát",
                                                 tint = Color.White,
                                                 modifier = Modifier
                                                     .size(48.dp)
@@ -226,15 +216,6 @@ fun ExploreScreen(
                                                         RoundedCornerShape(24.dp)
                                                     )
                                                     .padding(8.dp)
-                                            )
-                                        }
-                                        if (videoViewRef?.isPlaying == false && isPlaying) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier
-                                                    .size(48.dp)
-                                                    .align(Alignment.Center),
-                                                strokeWidth = 4.dp,
-                                                color = MaterialTheme.colorScheme.secondary
                                             )
                                         }
                                     }
@@ -495,7 +476,7 @@ private fun SearchBar(
                 .border(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
             placeholder = {
                 Text(
-                    "Explore news, topics, or sources...",
+                    "Tìm kiếm tin tức, chủ đề hoặc nguồn...",
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -503,7 +484,7 @@ private fun SearchBar(
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
+                    contentDescription = "Tìm kiếm",
                     tint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(24.dp)
                 )
@@ -517,7 +498,7 @@ private fun SearchBar(
                     IconButton(onClick = onClear) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
+                            contentDescription = "Xóa",
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             modifier = Modifier.size(24.dp)
                         )
@@ -559,7 +540,7 @@ private fun TrendingSection(
             .padding(horizontal = 16.dp)
     ) {
         Text(
-            text = "What's Hot",
+            text = "Tin Nóng",
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary,
@@ -607,13 +588,23 @@ private fun CategoryStrip(
         "technology" to Color(0xFF455A64)
     )
 
+    val vietnameseCategories = mapOf(
+        "general" to "Tổng hợp",
+        "business" to "Kinh doanh",
+        "entertainment" to "Giải trí",
+        "health" to "Sức khỏe",
+        "science" to "Khoa học",
+        "sports" to "Thể thao",
+        "technology" to "Công nghệ"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
         Text(
-            text = "Discover Topics",
+            text = "Khám Phá Chủ Đề",
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.secondary,
@@ -629,7 +620,7 @@ private fun CategoryStrip(
             items(categories) { category ->
                 val color = categoryColors[category] ?: MaterialTheme.colorScheme.secondary
                 CategoryPill(
-                    category = category,
+                    category = vietnameseCategories[category] ?: category.replaceFirstChar { it.uppercase() },
                     isSelected = category == selectedCategory,
                     color = color,
                     onClick = { onCategorySelected(category) }
@@ -663,7 +654,7 @@ private fun CategoryPill(
             modifier = Modifier.padding(horizontal = 20.dp)
         ) {
             Text(
-                text = category.replaceFirstChar { it.uppercase() },
+                text = category,
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                     color = contentColor,
@@ -706,7 +697,7 @@ private fun ErrorMessage(
     ) {
         Icon(
             imageVector = Icons.Default.Warning,
-            contentDescription = "Error",
+            contentDescription = "Lỗi",
             modifier = Modifier.size(56.dp),
             tint = MaterialTheme.colorScheme.error
         )
@@ -792,7 +783,7 @@ fun formatRelativeTime(dateString: String): String {
             diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)} phút trước"
             diff < 24 * 60 * 60 * 1000 -> "${diff / (60 * 60 * 1000)} giờ trước"
             diff < 48 * 60 * 60 * 1000 -> "Hôm qua"
-            else -> SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(date)
+            else -> SimpleDateFormat("dd MMM, yyyy", Locale("vi")).format(date)
         }
     } catch (e: Exception) {
         dateString

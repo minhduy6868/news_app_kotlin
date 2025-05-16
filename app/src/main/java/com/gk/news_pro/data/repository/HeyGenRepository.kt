@@ -21,7 +21,7 @@ class HeyGenRepository(private val context: Context) {
     }
 
     private val apiService: HeyGenApiService = retrofit.create(HeyGenApiService::class.java)
-    private val apiKey = "OTEyNjgxMWRmOTUzNGZhZTlkMjQyODk4ZGJjNTFiYjctMTc0Njg5NDk5Nw=="
+    private val apiKey = ""//"NjU4YzhhOWMzZGRhNDgzMmIwOTkwYTA3ODMzMjU0ZmItMTc0NzA2NjcwNw=="
     private val sharedPreferences: SharedPreferences =
         context.getSharedPreferences("HeyGenPrefs", Context.MODE_PRIVATE)
 

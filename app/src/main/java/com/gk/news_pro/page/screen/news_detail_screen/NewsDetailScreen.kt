@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.DateRange
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.gk.news_pro.data.local.AppDatabase
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.repository.GeminiRepository
 import kotlinx.coroutines.launch
@@ -57,14 +59,15 @@ fun NewsDetailScreen(
     news: News,
     geminiRepository: GeminiRepository
 ) {
-    val viewModel = remember { NewsDetailViewModel(geminiRepository) }
+    val context = LocalContext.current
+    val database = remember { AppDatabase.getDatabase(context) }
+    val viewModel = remember { NewsDetailViewModel(geminiRepository, database, context) }
     val aiAnalysis by viewModel.aiAnalysis.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val uriHandler = LocalUriHandler.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     val scrollState = rememberScrollState()
     var expandedAiAnalysis by remember { mutableStateOf(true) }
 
@@ -72,7 +75,7 @@ fun NewsDetailScreen(
     LaunchedEffect(news.link) {
         if (news.link.isNotEmpty()) {
             scope.launch {
-                viewModel.analyzeNewsFromUrl(news.link)
+                viewModel.analyzeNewsFromUrl(news)
                 snackbarHostState.showSnackbar(
                     message = "Đang phân tích bài báo...",
                     withDismissAction = true,
@@ -105,6 +108,16 @@ fun NewsDetailScreen(
                         type = "text/plain"
                     }
                     context.startActivity(Intent.createChooser(sendIntent, "Chia sẻ bài báo"))
+                },
+                onReadLater = {
+                    scope.launch {
+                        viewModel.saveForReadLater(news, aiAnalysis)
+                        snackbarHostState.showSnackbar(
+                            message = "Đã lưu bài báo để đọc sau",
+                            withDismissAction = true,
+                            duration = SnackbarDuration.Short
+                        )
+                    }
                 }
             )
         },
@@ -482,7 +495,8 @@ private fun MetaInfoItem(
 private fun NewsDetailAppBar(
     navController: NavController,
     news: News,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    onReadLater: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -517,6 +531,18 @@ private fun NewsDetailAppBar(
                 Icon(
                     imageVector = Icons.Default.Share,
                     contentDescription = "Chia sẻ",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(
+                onClick = onReadLater,
+                modifier = Modifier
+                    .size(40.dp)
+                    .padding(2.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AddCircle,
+                    contentDescription = "Đọc sau",
                     tint = MaterialTheme.colorScheme.primary
                 )
             }

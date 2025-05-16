@@ -27,10 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -61,12 +57,8 @@ fun CreatePostComponent(
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var tempImageFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var showConfirmDialog by remember { mutableStateOf(-1) } // Index of image to remove
-    var focused by remember { mutableStateOf(false) }
 
-    // FocusRequester for TextField
-    val focusRequester = remember { FocusRequester() }
-
-    // Animation states
+    // Animation states for button
     var buttonClicked by remember { mutableStateOf(false) }
     val buttonScale by animateFloatAsState(
         targetValue = if (buttonClicked) 0.95f else 1.0f,
@@ -117,21 +109,21 @@ fun CreatePostComponent(
     if (showConfirmDialog >= 0) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = -1 },
-            title = { Text("Xóa ảnh", style = MaterialTheme.typography.titleSmall) },
+            title = { Text("Xóa ảnh", style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     AsyncImage(
                         model = selectedImageUris[showConfirmDialog],
-                        contentDescription = "Image to delete",
+                        contentDescription = "Ảnh cần xóa",
                         modifier = Modifier
-                            .size(80.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .size(100.dp)
+                            .clip(RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Crop
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         "Bạn có chắc muốn xóa ảnh này?",
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
             },
@@ -157,43 +149,30 @@ fun CreatePostComponent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(4.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .padding(16.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Content TextField
         TextField(
             value = content,
             onValueChange = { content = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .shadow(
-                    elevation = if (focused) 4.dp else 0.dp,
-                    shape = RoundedCornerShape(8.dp),
-                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                )
+                .height(100.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .border(
                     1.dp,
-                    Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
-                        )
-                    ),
-                    RoundedCornerShape(8.dp)
-                )
-                .focusRequester(focusRequester)
-                .onFocusChanged { focusState ->
-                    focused = focusState.isFocused
-                },
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                    RoundedCornerShape(12.dp)
+                ),
             placeholder = {
                 Text(
                     "Bạn đang nghĩ gì?",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 )
@@ -204,22 +183,28 @@ fun CreatePostComponent(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             ),
-            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
-            shape = RoundedCornerShape(8.dp)
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+            shape = RoundedCornerShape(12.dp)
         )
 
+        // Location TextField
         TextField(
             value = location,
             onValueChange = { location = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(32.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .height(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(
+                    1.dp,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                    RoundedCornerShape(12.dp)
+                ),
             placeholder = {
                 Text(
-                    "Địa điểm",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 10.sp,
+                    "Địa điểm (tùy chọn)",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 )
@@ -227,9 +212,9 @@ fun CreatePostComponent(
             leadingIcon = {
                 Icon(
                     Icons.Default.LocationOn,
-                    contentDescription = "Location",
+                    contentDescription = "Địa điểm",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(12.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             },
             colors = TextFieldDefaults.colors(
@@ -238,8 +223,8 @@ fun CreatePostComponent(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             ),
-            textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-            shape = RoundedCornerShape(8.dp),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+            shape = RoundedCornerShape(12.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
             singleLine = true
         )
@@ -249,13 +234,14 @@ fun CreatePostComponent(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Card(
+            // Add image button
+            Surface(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable {
                         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             Manifest.permission.READ_MEDIA_IMAGES
@@ -272,10 +258,8 @@ fun CreatePostComponent(
                             permissionLauncher.launch(permission)
                         }
                     },
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -283,143 +267,138 @@ fun CreatePostComponent(
                 ) {
                     Icon(
                         Icons.Default.Add,
-                        contentDescription = "Add photo",
-                        modifier = Modifier.size(18.dp),
+                        contentDescription = "Thêm ảnh",
+                        modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
 
+            // Image previews
             selectedImageUris.forEachIndexed { index, uri ->
                 var imageClicked by remember { mutableStateOf(false) }
                 val imageScale by animateFloatAsState(
-                    targetValue = if (imageClicked) 1.1f else 1.0f,
+                    targetValue = if (imageClicked) 1.05f else 1.0f,
                     animationSpec = tween(durationMillis = 200)
                 )
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(64.dp)
                         .scale(imageScale)
-                        .clip(RoundedCornerShape(8.dp))
-                        .shadow(2.dp, RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            RoundedCornerShape(12.dp)
+                        )
                         .clickable { imageClicked = !imageClicked }
                 ) {
                     AsyncImage(
                         model = uri,
-                        contentDescription = "Selected image",
+                        contentDescription = "Ảnh đã chọn",
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Crop
                     )
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .size(14.dp)
+                            .size(20.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.9f))
+                            .background(MaterialTheme.colorScheme.error)
                             .clickable { showConfirmDialog = index }
                     ) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Remove image",
+                            contentDescription = "Xóa ảnh",
                             tint = MaterialTheme.colorScheme.onError,
-                            modifier = Modifier.size(9.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
             }
 
+            // Image count indicator
             if (selectedImageUris.isNotEmpty()) {
-                Box(
+                Surface(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    CircularProgressIndicator(
-                        progress = { selectedImageUris.size.toFloat() / maxImages },
-                        modifier = Modifier.size(40.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        strokeWidth = 3.dp
-                    )
-                    Text(
-                        text = "${selectedImageUris.size}",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.primary
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            progress = { selectedImageUris.size.toFloat() / maxImages },
+                            modifier = Modifier.size(48.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surface,
+                            strokeWidth = 4.dp
                         )
-                    )
+                        Text(
+                            text = "${selectedImageUris.size}/$maxImages",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
                 }
             }
         }
 
         // Post button
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Button(
-                onClick = {
-                    buttonClicked = true
-                    scope.launch {
-                        if (content.isBlank()) {
-                            snackbarHostState.showSnackbar("Vui lòng nhập nội dung")
-                            buttonClicked = false
-                            return@launch
-                        }
-                        try {
-                            createPostViewModel.createPost(
-                                content = content,
-                                imageFiles = if (tempImageFiles.isEmpty()) null else tempImageFiles,
-                                location = if (location.isBlank()) null else location
-                            )
-                            content = ""
-                            location = ""
-                            selectedImageUris = emptyList()
-                            tempImageFiles = emptyList()
-                        } catch (e: Exception) {
-                            snackbarHostState.showSnackbar("Lỗi khi đăng bài: ${e.message}")
-                        } finally {
-                            buttonClicked = false
-                        }
+        Button(
+            onClick = {
+                buttonClicked = true
+                scope.launch {
+                    if (content.isBlank()) {
+                        snackbarHostState.showSnackbar("Vui lòng nhập nội dung")
+                        buttonClicked = false
+                        return@launch
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(32.dp)
-                    .scale(buttonScale)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.8f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp),
-                enabled = uiState !is CreatePostViewModel.CreatePostUiState.Loading
-            ) {
-                Text(
-                    "Đăng bài",
-                    style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp)
-                )
-            }
+                    try {
+                        createPostViewModel.createPost(
+                            content = content,
+                            imageFiles = if (tempImageFiles.isEmpty()) null else tempImageFiles,
+                            location = if (location.isBlank()) null else location
+                        )
+                        content = ""
+                        location = ""
+                        selectedImageUris = emptyList()
+                        tempImageFiles = emptyList()
+                    } catch (e: Exception) {
+                        snackbarHostState.showSnackbar("Lỗi khi đăng bài: ${e.message}")
+                    } finally {
+                        buttonClicked = false
+                    }
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .scale(buttonScale),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ),
+            enabled = uiState !is CreatePostViewModel.CreatePostUiState.Loading
+        ) {
             if (uiState is CreatePostViewModel.CreatePostUiState.Loading) {
                 CircularProgressIndicator(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 8.dp),
+                    modifier = Modifier.size(24.dp),
                     color = MaterialTheme.colorScheme.onPrimary,
                     strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    "Đăng bài",
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
                 )
             }
         }

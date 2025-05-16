@@ -49,12 +49,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gk.news_pro.data.model.Country
 import com.gk.news_pro.data.model.RadioStation
-import com.gk.news_pro.page.components.RadioCard
 import com.gk.news_pro.data.model.Tag
 import com.gk.news_pro.data.repository.RadioRepository
 import com.gk.news_pro.data.repository.UserRepository
+import com.gk.news_pro.page.components.RadioCard
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
-import com.gk.news_pro.page.utils.ImageFromUrl
 import com.gk.news_pro.page.utils.service.PlaybackState
 import com.gk.news_pro.utils.MediaPlayerManager
 import kotlinx.coroutines.launch
@@ -110,7 +109,7 @@ fun RadioScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                             MaterialTheme.colorScheme.background
                         )
                     )
@@ -269,7 +268,6 @@ fun RadioScreen(
     }
 }
 
-// Header Section with Country Dropdown and Tag Strip
 @Composable
 private fun HeaderSection(
     countries: List<Country>,
@@ -282,8 +280,8 @@ private fun HeaderSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         CountryDropdown(
             countries = countries,
@@ -298,7 +296,6 @@ private fun HeaderSection(
     }
 }
 
-// Country Dropdown
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CountryDropdown(
@@ -323,13 +320,14 @@ private fun CountryDropdown(
             onValueChange = {},
             modifier = Modifier
                 .fillMaxWidth()
+                .shadow(2.dp, RoundedCornerShape(12.dp))
                 .clickable { expanded = true },
             label = { Text("Quốc gia", style = MaterialTheme.typography.bodyMedium) },
             readOnly = true,
             trailingIcon = {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Expand",
+                    contentDescription = "Mở rộng",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.clickable { expanded = true }
                 )
@@ -370,7 +368,6 @@ private fun CountryDropdown(
     }
 }
 
-// Tag Strip
 @Composable
 private fun TagStrip(
     tags: List<String>,
@@ -378,13 +375,13 @@ private fun TagStrip(
     onTagSelected: (String) -> Unit
 ) {
     val tagColors = mapOf(
-        "pop" to Color(0xFF0288D1),
-        "rock" to Color(0xFFD81B60),
-        "jazz" to Color(0xFF388E3C),
-        "classical" to Color(0xFFFBC02D),
-        "news" to Color(0xFF7B1FA2),
-        "talk" to Color(0xFFE64A19),
-        "sports" to Color(0xFF455A64)
+        "nhac tre" to Color(0xFF0288D1),
+        "nhac vang" to Color(0xFFD81B60),
+        "nhac quoc te" to Color(0xFF388E3C),
+        "tin tuc" to Color(0xFFFBC02D),
+        "giai tri" to Color(0xFF7B1FA2),
+        "the thao" to Color(0xFFE64A19),
+        "van hoa" to Color(0xFF455A64)
     )
 
     if (tags.isEmpty()) {
@@ -396,7 +393,7 @@ private fun TagStrip(
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "Thể Loại",
+            text = "Thể loại",
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -419,7 +416,6 @@ private fun TagStrip(
     }
 }
 
-// Tag Pill
 @Composable
 private fun TagPill(
     tag: String,
@@ -463,7 +459,6 @@ private fun TagPill(
     }
 }
 
-// Search Bar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchBar(
@@ -485,7 +480,7 @@ private fun SearchBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .shadow(4.dp, RoundedCornerShape(12.dp))
+                .shadow(2.dp, RoundedCornerShape(12.dp))
                 .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
             placeholder = {
                 Text(
@@ -497,7 +492,7 @@ private fun SearchBar(
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
+                    contentDescription = "Tìm kiếm",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
@@ -511,7 +506,7 @@ private fun SearchBar(
                     IconButton(onClick = onClear) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
+                            contentDescription = "Xóa",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
@@ -538,8 +533,6 @@ private fun SearchBar(
     }
 }
 
-
-
 @Composable
 private fun TrendingSection(
     stations: List<RadioStation>,
@@ -558,16 +551,17 @@ private fun TrendingSection(
             .padding(top = 16.dp)
     ) {
         Text(
-            text = "Trending Stations",
+            text = "Đài thịnh hành",
             style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             ),
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
         LazyRow(
             modifier = Modifier.padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
             items(stations) { station ->
@@ -595,11 +589,12 @@ private fun TrendingRadioItem(
 ) {
     Card(
         modifier = Modifier
-            .width(280.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+            .width(300.dp)
+            .clickable { onClick() }
+            .shadow(4.dp, RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -628,10 +623,10 @@ private fun TrendingRadioItem(
                     Icon(
                         imageVector = if (isFavorited) Icons.Filled.Favorite
                         else Icons.Filled.FavoriteBorder,
-                        contentDescription = "Favorite",
+                        contentDescription = "Yêu thích",
                         tint = if (isFavorited) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -641,40 +636,53 @@ private fun TrendingRadioItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
                     if (!station.country.isNullOrEmpty()) {
                         Text(
                             text = station.country,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
                     if (!station.tags.isNullOrEmpty()) {
-                        Text(
-                            text = station.tags.split(",").joinToString(", ") { "#${it.trim()}" },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        val tags = station.tags.split(",").map { it.trim() }
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.padding(top = 4.dp)
-                        )
+                        ) {
+                            items(tags.take(3)) { tag ->
+                                Text(
+                                    text = "#$tag",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
 
                 IconButton(
                     onClick = onPlayPauseClick,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(40.dp)
                         .background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                             CircleShape
                         )
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Filled.Menu
                         else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) "Tạm dừng" else "Phát",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -682,7 +690,6 @@ private fun TrendingRadioItem(
     }
 }
 
-// Loading Indicator
 @Composable
 private fun LoadingIndicator(modifier: Modifier = Modifier) {
     Box(
@@ -699,7 +706,6 @@ private fun LoadingIndicator(modifier: Modifier = Modifier) {
     }
 }
 
-// Error Message
 @Composable
 private fun ErrorMessage(message: String, onRetry: () -> Unit) {
     Column(
@@ -711,7 +717,7 @@ private fun ErrorMessage(message: String, onRetry: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.Default.Warning,
-            contentDescription = "Error",
+            contentDescription = "Lỗi",
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.error
         )
@@ -739,7 +745,6 @@ private fun ErrorMessage(message: String, onRetry: () -> Unit) {
     }
 }
 
-// Empty Search Results
 @Composable
 private fun EmptySearchResults(query: String) {
     Column(
@@ -751,7 +756,7 @@ private fun EmptySearchResults(query: String) {
     ) {
         Icon(
             imageVector = Icons.Default.Search,
-            contentDescription = "No results",
+            contentDescription = "Không có kết quả",
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
@@ -771,7 +776,6 @@ private fun EmptySearchResults(query: String) {
     }
 }
 
-// Empty Content Message
 @Composable
 private fun EmptyContentMessage(message: String) {
     Column(
@@ -783,7 +787,7 @@ private fun EmptyContentMessage(message: String) {
     ) {
         Icon(
             imageVector = Icons.Default.Warning,
-            contentDescription = "No content",
+            contentDescription = "Không có nội dung",
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )

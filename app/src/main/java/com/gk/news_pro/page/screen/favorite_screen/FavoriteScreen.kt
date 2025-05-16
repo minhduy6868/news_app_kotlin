@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,20 +22,24 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.gk.news_pro.data.model.News
 import com.gk.news_pro.data.model.RadioStation
 import com.gk.news_pro.data.repository.UserRepository
 import com.gk.news_pro.page.components.NewsCard
 import com.gk.news_pro.page.components.RadioCard
 import com.gk.news_pro.page.main_viewmodel.ViewModelFactory
+import com.gk.news_pro.page.navigation.Screen
 import com.gk.news_pro.page.screen.radio_screen.RadioViewModel
 import com.gk.news_pro.page.screen.radio_screen.RadioUiState
 import com.gk.news_pro.utils.MediaPlayerManager
 import com.gk.news_pro.page.utils.service.PlaybackState
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoriteScreen(
+    navController: NavController,
     userRepository: UserRepository,
     favoriteViewModel: FavoriteViewModel = viewModel(factory = ViewModelFactory(userRepository)),
     radioViewModel: RadioViewModel = viewModel(factory = ViewModelFactory(userRepository)),
@@ -95,6 +100,24 @@ fun FavoriteScreen(
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Kho yêu thích") },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        navController.navigate(Screen.Account.route) {
+                            popUpTo(Screen.Favorite.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back to Account"
+                        )
+                    }
+                }
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = Modifier.fillMaxSize()
     ) { padding ->
@@ -211,7 +234,6 @@ fun FavoriteScreen(
                                         )
                                     }
                                     items(favoriteRadioStations) { station ->
-                                        // Check for valid station data
                                         if (station.stationuuid.isBlank() || station.name.isBlank()) {
                                             Log.w("FavoriteScreen", "Invalid station data: uuid=${station.stationuuid}, name=${station.name}")
                                             ErrorRadioCard(

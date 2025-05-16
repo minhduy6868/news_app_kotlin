@@ -77,8 +77,6 @@ dependencies {
     implementation(libs.androidx.datastore.core.android)
     implementation(libs.protolite.well.known.types)
     implementation(libs.play.services.cast.tv)
-    implementation(libs.androidx.room.common.jvm)
-    implementation(libs.androidx.room.runtime.android)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
@@ -102,6 +100,11 @@ dependencies {
   //  implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
 
 
+    //roomdatabase
+    val room_version = "2.6.1"
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:$room_version")
     //navigatio
     implementation("androidx.navigation:navigation-compose:2.7.5")
 

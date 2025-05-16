@@ -1,4 +1,3 @@
-
 package com.loc.newsapp.screen.onboarding_screen
 
 import android.content.res.Configuration
@@ -18,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -40,6 +40,7 @@ object Dimens {
     val IndicatorSize = 14.dp
     val PageIndicatorWidth = 52.dp
     const val MaxContentWidth = 800f // Max width for large screens in dp
+    val ButtonRowPaddingBottom = 16.dp // Padding dưới cho nút
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -47,7 +48,7 @@ object Dimens {
 fun OnBoardingScreen(onFinish: () -> Unit) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
-    val isLargeScreen = screenWidth > 600.dp // Consider screens > 600dp as large (e.g., tablets)
+    val isLargeScreen = screenWidth > 600.dp
 
     // Scale padding and sizes for large screens
     val paddingHorizontal = if (isLargeScreen) Dimens.MediumPadding2 * 1.5f else Dimens.MediumPadding2
@@ -61,8 +62,8 @@ fun OnBoardingScreen(onFinish: () -> Unit) {
         Column(
             Modifier
                 .fillMaxSize()
-                .widthIn(max = Dimens.MaxContentWidth.dp) // Constrain max width
-                .align(Alignment.Center) // Center on large screens
+                .widthIn(max = Dimens.MaxContentWidth.dp)
+                .align(Alignment.Center)
         ) {
             val pagerState = rememberPagerState(pageCount = { pages.size })
             val scope = rememberCoroutineScope()
@@ -81,13 +82,17 @@ fun OnBoardingScreen(onFinish: () -> Unit) {
                 OnBoardingPage(page = pages[index], isLargeScreen = isLargeScreen)
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(Dimens.MediumPadding1)) // Giảm Spacer để nút lên trên
 
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = paddingHorizontal)
-                    .navigationBarsPadding(),
+                    .padding(
+                        horizontal = paddingHorizontal,
+                        vertical = Dimens.MediumPadding1
+                    )
+                    .navigationBarsPadding()
+                    .padding(bottom = Dimens.ButtonRowPaddingBottom), // Thêm padding dưới
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -101,7 +106,7 @@ fun OnBoardingScreen(onFinish: () -> Unit) {
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp) // Tăng khoảng cách giữa các nút
                 ) {
                     buttons.value[0]?.let { text ->
                         NewsTextButton(text = text, isLargeScreen = isLargeScreen) {
@@ -139,6 +144,7 @@ fun PageIndicator(
                     .size(10.dp)
                     .clip(CircleShape)
                     .background(if (index == selectedPage) selectedColor else unselectedColor)
+                    .shadow(2.dp, CircleShape) // Thêm bóng nhẹ
             )
         }
     }
@@ -150,7 +156,6 @@ fun OnBoardingPage(
     page: Page,
     isLargeScreen: Boolean = false
 ) {
-    // Scale font sizes for large screens
     val titleFontSize = if (isLargeScreen) 28.sp else 22.sp
     val descriptionFontSize = if (isLargeScreen) 16.sp else 14.sp
 
@@ -161,8 +166,8 @@ fun OnBoardingPage(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f) // Maintain aspect ratio for images
-                .fillMaxHeight(0.6f) // Reduce height to balance layout
+                .aspectRatio(1f)
+                .fillMaxHeight(0.55f) // Giảm nhẹ chiều cao ảnh để cân đối
         )
 
         Box(
@@ -211,13 +216,15 @@ fun NewsButton(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = Color.White
         ),
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(8.dp), // Bo góc mềm hơn
+        elevation = ButtonDefaults.buttonElevation(4.dp), // Thêm bóng
         modifier = Modifier
-            .height(if (isLargeScreen) 48.dp else 40.dp) // Larger buttons on big screens
+            .height(if (isLargeScreen) 50.dp else 42.dp) // Tăng nhẹ chiều cao
+            .padding(horizontal = 4.dp)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium.copy(
+            style = MaterialTheme.typography.labelLarge.copy( // Dùng labelLarge cho đồng bộ
                 fontWeight = FontWeight.SemiBold,
                 fontSize = if (isLargeScreen) 16.sp else 14.sp
             )
@@ -234,22 +241,23 @@ fun NewsTextButton(
     TextButton(
         onClick = onClick,
         modifier = Modifier
-            .height(if (isLargeScreen) 48.dp else 40.dp)
+            .height(if (isLargeScreen) 50.dp else 42.dp)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium.copy(
+            style = MaterialTheme.typography.labelLarge.copy(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = if (isLargeScreen) 16.sp else 14.sp
             ),
-            color = Color.Blue
+            color = MaterialTheme.colorScheme.primary // Đồng bộ màu với nút chính
         )
     }
 }
 
 @Preview(showBackground = true)
 @Preview(showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Preview(showBackground = true, device = "id:pixel_tablet") // Tablet preview
+@Preview(showBackground = true, device = "id:pixel_tablet")
+@Preview(showBackground = true, device = "spec:width=411dp,height=731dp") // Màn hình nhỏ
 @Composable
 fun OnBoardingScreenPreview() {
     NewsProTheme {

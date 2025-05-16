@@ -41,6 +41,7 @@ import com.gk.news_pro.page.screen.detail_screen.NewsDetailScreen
 import com.gk.news_pro.page.screen.explore_sceen.ExploreScreen
 import com.gk.news_pro.page.screen.explore_sceen.ExploreViewModel
 import com.gk.news_pro.page.screen.favorite_screen.FavoriteScreen
+import com.gk.news_pro.page.screen.offline_list_news_screen.OfflineListNewsScreen
 import com.gk.news_pro.page.screen.news_feed.NewsFeedScreen
 import com.gk.news_pro.page.screen.radio_screen.RadioScreen
 import com.gk.news_pro.page.screen.radio_screen.RadioViewModel
@@ -55,8 +56,9 @@ import java.net.URLEncoder
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Radio : Screen("radio", "Radio", Icons.Filled.PlayArrow)
-    object Explore : Screen("explore", "Explore", Icons.Filled.DateRange)
-    object NewsFeed : Screen("news_feed", "News Feed", Icons.Filled.Home)
+    object Explore : Screen("explore", "News", Icons.Filled.DateRange)
+    object NewsFeed : Screen("news_feed", "News Feed", Icons.Filled.Share)
+    object OfflineNews : Screen("offline_news", "Offline News", Icons.Filled.DateRange)
     object Favorite : Screen("favorite", "Favorite", Icons.Filled.Favorite)
     object Account : Screen("account", "Account", Icons.Filled.AccountCircle)
     object NewsDetail : Screen("news_detail/{newsJson}", "News Detail") {
@@ -73,8 +75,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    // Added NewsFeed to bottom navigation bar
-    val bottomNavItems = listOf(Screen.Explore, Screen.NewsFeed, Screen.Radio, Screen.Favorite, Screen.Account)
+    val bottomNavItems = listOf(Screen.Explore, Screen.NewsFeed, Screen.Radio, Screen.Account)
     val newsRepository = NewsRepository()
     val geminiRepository = GeminiRepository()
     val userRepository = UserRepository()
@@ -85,8 +86,7 @@ fun AppNavigation() {
     )
     val coroutineScope = rememberCoroutineScope()
     val isLoggedIn by remember { mutableStateOf(userRepository.isLoggedIn()) }
-    // Kept Radio as start destination; change to Screen.NewsFeed.route if you want NewsFeed as default
-    val startDestination = Screen.Radio.route
+    val startDestination = Screen.Explore.route // Changed from Screen.Radio to Screen.Explore
     val context = LocalContext.current
     val gson = Gson()
 
@@ -109,7 +109,7 @@ fun AppNavigation() {
                     items = bottomNavItems,
                     currentRoute = currentRoute,
                     onItemClick = { screen ->
-                        if ((screen == Screen.Account || screen == Screen.NewsFeed) && !userRepository.isLoggedIn()) {
+                        if (screen == Screen.Account && !userRepository.isLoggedIn()) {
                             Log.d("AppNavigation", "User not logged in, redirecting to Login")
                             navController.navigate(Screen.Login.route)
                         } else {
@@ -137,8 +137,8 @@ fun AppNavigation() {
                     LoginScreen(
                         userRepository = userRepository,
                         onLoginSuccess = {
-                            Log.d("AppNavigation", "Login successful, navigating to Radio")
-                            navController.navigate(Screen.Radio.route) {
+                            Log.d("AppNavigation", "Login successful, navigating to Explore")
+                            navController.navigate(Screen.Explore.route) {
                                 popUpTo(Screen.Login.route) { inclusive = true }
                             }
                         },
@@ -198,9 +198,25 @@ fun AppNavigation() {
                         postRepository = postRepository
                     )
                 }
+                composable(Screen.OfflineNews.route) {
+                    Log.d("AppNavigation", "Navigating to OfflineListNewsScreen")
+                    OfflineListNewsScreen(
+                        navController = navController,
+                        onNewsClick = { news ->
+                            try {
+                                val newsJson = gson.toJson(news)
+                                Log.d("AppNavigation", "Serialized newsJson: $newsJson")
+                                navController.navigate(Screen.NewsDetail.createRoute(newsJson))
+                            } catch (e: Exception) {
+                                Log.e("AppNavigation", "Error serializing news: ${e.message}", e)
+                            }
+                        }
+                    )
+                }
                 composable(Screen.Favorite.route) {
                     Log.d("AppNavigation", "Navigating to FavoriteScreen")
                     FavoriteScreen(
+                        navController = navController,
                         userRepository = userRepository,
                         onNewsClick = { news ->
                             try {
@@ -223,6 +239,18 @@ fun AppNavigation() {
                                 navController.navigate(Screen.Login.route) {
                                     popUpTo(navController.graph.startDestinationId) { inclusive = true }
                                 }
+                            }
+                        },
+                        onNavigateToOfflineNews = {
+                            navController.navigate(Screen.OfflineNews.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        },
+                        onNavigateToFavoriteScreen = {
+                            navController.navigate(Screen.Favorite.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                                launchSingleTop = true
                             }
                         }
                     )
@@ -269,10 +297,10 @@ fun AppNavigation() {
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
-                                onClick = { navController.navigate(Screen.Radio.route) },
+                                onClick = { navController.navigate(Screen.Explore.route) },
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Quay lại Radio")
+                                Text("Quay lại News")
                             }
                         }
                     }

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -22,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -125,7 +125,7 @@ fun NewsFeedScreen(
                     ) {
                         Text(
                             text = data.visuals.message,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -138,14 +138,19 @@ fun NewsFeedScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Compact Create Post Section
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(4.dp, RoundedCornerShape(12.dp)),
+                    .padding(top = 8.dp)
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        RoundedCornerShape(12.dp)
+                    ),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -167,7 +172,7 @@ fun NewsFeedScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Default.Edit,
-                                contentDescription = null,
+                                contentDescription = "Tạo bài đăng",
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -176,14 +181,14 @@ fun NewsFeedScreen(
                                 text = "Tạo bài đăng",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Bold
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Toggle create post",
+                            contentDescription = "Mở rộng/Thu gọn",
                             modifier = Modifier
                                 .size(24.dp)
                                 .rotate(rotateIcon)
@@ -216,8 +221,8 @@ fun NewsFeedScreen(
                     ) {
                         CircularProgressIndicator(
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 4.dp,
-                            modifier = Modifier.size(36.dp)
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }
@@ -230,7 +235,7 @@ fun NewsFeedScreen(
                         ) {
                             Icon(
                                 Icons.Default.Info,
-                                contentDescription = null,
+                                contentDescription = "Không có bài đăng",
                                 modifier = Modifier.size(48.dp),
                                 tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
                             )
@@ -239,13 +244,13 @@ fun NewsFeedScreen(
                                 text = "Chưa có bài đăng",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontSize = 18.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Bold
                                 )
                             )
                         }
                     } else {
                         LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(bottom = 64.dp)
                         ) {
                             items(posts, key = { it.postId }) { post ->
@@ -293,21 +298,29 @@ fun PostCard(
         targetValue = if (post.likes[currentUserId] == true) 1.2f else 1.0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
     )
+    val isCurrentUserPost = post.userId == currentUserId
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(3.dp, RoundedCornerShape(12.dp)),
+            .border(
+                1.dp,
+                if (isCurrentUserPost) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                RoundedCornerShape(12.dp)
+            ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isCurrentUserPost)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.05f)
+            else MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Post Header
             Row(
@@ -320,15 +333,21 @@ fun PostCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                            .background(
+                                if (isCurrentUserPost)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                else MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = post.username.first().toString().uppercase(),
-                            style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp),
-                            color = MaterialTheme.colorScheme.primary
+                            style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp),
+                            color = if (isCurrentUserPost)
+                                MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.secondary
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
@@ -337,7 +356,7 @@ fun PostCard(
                             text = post.username,
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Bold
                             )
                         )
                         Row(
@@ -346,7 +365,7 @@ fun PostCard(
                             post.location?.let {
                                 Icon(
                                     Icons.Default.LocationOn,
-                                    contentDescription = null,
+                                    contentDescription = "Địa điểm",
                                     modifier = Modifier.size(14.dp),
                                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
@@ -373,7 +392,7 @@ fun PostCard(
                     ) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Delete post",
+                            contentDescription = "Xóa bài đăng",
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
@@ -388,7 +407,7 @@ fun PostCard(
                     fontSize = 14.sp,
                     lineHeight = 20.sp
                 ),
-                maxLines = 4
+                maxLines = 3
             )
 
             // Post Images
@@ -397,14 +416,14 @@ fun PostCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     urls.forEach { url ->
                         AsyncImage(
                             model = url,
-                            contentDescription = "Post image",
+                            contentDescription = "Ảnh bài đăng",
                             modifier = Modifier
-                                .size(180.dp)
+                                .size(150.dp)
                                 .clip(RoundedCornerShape(8.dp)),
                             placeholder = painterResource(id = R.drawable.splash_background),
                             error = painterResource(id = R.drawable.splash_background),
@@ -429,7 +448,7 @@ fun PostCard(
                 ) {
                     Icon(
                         imageVector = if (post.likes[currentUserId] == true) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Like",
+                        contentDescription = "Thích",
                         tint = if (post.likes[currentUserId] == true) Color(0xFFD81B60) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         modifier = Modifier.size(20.dp)
                     )
@@ -440,7 +459,7 @@ fun PostCard(
                     )
                 }
                 Text(
-                    text = "${post.comments.size}",
+                    text = "${post.comments.size} bình luận",
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     modifier = Modifier
                         .clickable { showAllComments = !showAllComments }
@@ -456,7 +475,7 @@ fun PostCard(
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val commentsToShow = if (showAllComments) post.comments.values else post.comments.values.take(2)
                     commentsToShow.forEach { comment ->
@@ -465,7 +484,7 @@ fun PostCard(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f))
-                                .padding(8.dp)
+                                .padding(6.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -486,7 +505,7 @@ fun PostCard(
                                     text = comment.username,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Bold
                                     )
                                 )
                                 Text(
@@ -522,13 +541,18 @@ fun PostCard(
                     onValueChange = { commentInput = it },
                     modifier = Modifier
                         .weight(1f)
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            RoundedCornerShape(8.dp)
+                        ),
                     placeholder = {
                         Text(
-                            "Bình luận...",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 12.sp,
+                            "Viết bình luận...",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                         )
@@ -539,8 +563,8 @@ fun PostCard(
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
                     ),
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    singleLine = true
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                    maxLines = 2
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
@@ -557,9 +581,9 @@ fun PostCard(
                 ) {
                     Icon(
                         Icons.Default.Send,
-                        contentDescription = "Send comment",
+                        contentDescription = "Gửi bình luận",
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }

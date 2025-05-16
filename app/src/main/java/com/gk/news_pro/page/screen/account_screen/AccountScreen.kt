@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -30,8 +29,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.gk.news_pro.data.model.User
@@ -46,6 +48,8 @@ import java.io.FileOutputStream
 fun AccountScreen(
     userRepository: UserRepository,
     onSignOut: () -> Unit,
+    onNavigateToOfflineNews: () -> Unit,
+    onNavigateToFavoriteScreen: () -> Unit,
     context: Context = LocalContext.current,
     viewModel: AccountViewModel = viewModel(
         factory = ViewModelFactory(
@@ -57,6 +61,8 @@ fun AccountScreen(
     var notificationsEnabled by remember { mutableStateOf(true) }
     var username by remember { mutableStateOf("") }
     var avatarUri by remember { mutableStateOf<Uri?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var passwordInput by remember { mutableStateOf("") }
     val uiState by viewModel.uiState.collectAsState()
     val user by viewModel.user.collectAsState()
     val isUpdatingProfile by viewModel.isUpdatingProfile.collectAsState()
@@ -78,7 +84,7 @@ fun AccountScreen(
             imagePickerLauncher.launch("image/*")
         } else {
             coroutineScope.launch {
-                snackbarHostState.showSnackbar("Permission denied")
+                snackbarHostState.showSnackbar("Quyền truy cập bị từ chối")
             }
         }
     }
@@ -95,14 +101,91 @@ fun AccountScreen(
         when (uiState) {
             is AccountUiState.Success -> {
                 if (user != null && avatarUri != null) {
-                    avatarUri = null // Reset after successful update
-                    snackbarHostState.showSnackbar("Profile updated successfully")
+                    avatarUri = null
+                    snackbarHostState.showSnackbar("Cập nhật hồ sơ thành công")
+                } else if (uiState is AccountUiState.Success && user == null) {
+                    snackbarHostState.showSnackbar("Xóa tài khoản thành công")
                 }
             }
             is AccountUiState.Error -> {
                 snackbarHostState.showSnackbar((uiState as AccountUiState.Error).message)
             }
             else -> {}
+        }
+    }
+
+    // Delete account confirmation dialog
+    if (showDeleteDialog) {
+        Dialog(onDismissRequest = { showDeleteDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Xác nhận xóa tài khoản",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Hành động này không thể hoàn tác. Vui lòng nhập mật khẩu để xác nhận.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = passwordInput,
+                        onValueChange = { passwordInput = it },
+                        label = { Text("Mật khẩu") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TextButton(onClick = { showDeleteDialog = false }) {
+                            Text("Hủy", style = MaterialTheme.typography.labelSmall)
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Button(
+                            onClick = {
+                                if (passwordInput.isBlank()) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Vui lòng nhập mật khẩu")
+                                    }
+                                } else {
+                                    viewModel.deleteAccount(passwordInput)
+                                    showDeleteDialog = false
+                                    passwordInput = ""
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("Xóa", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -116,158 +199,135 @@ fun AccountScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            when (uiState) {
-                is AccountUiState.Loading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                is AccountUiState.Success -> {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                top = 24.dp,
-                                bottom = innerPadding.calculateBottomPadding(),
-                                start = 16.dp,
-                                end = 16.dp
-                            ),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        item {
-                            ProfileHeader(
-                                user = user,
-                                username = username,
-                                onUsernameChange = { username = it },
-                                avatarUri = avatarUri,
-                                onAvatarClick = {
-                                    permissionLauncher.launch(
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                            android.Manifest.permission.READ_MEDIA_IMAGES
-                                        } else {
-                                            android.Manifest.permission.READ_EXTERNAL_STORAGE
-                                        }
-                                    )
-                                },
-                                onSave = {
-                                    if (username.isBlank()) {
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Username cannot be empty")
-                                        }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = 12.dp,
+                        bottom = innerPadding.calculateBottomPadding(),
+                        start = 10.dp,
+                        end = 10.dp
+                    ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    if (uiState is AccountUiState.Loading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        ProfileHeader(
+                            user = user,
+                            username = username,
+                            onUsernameChange = { username = it },
+                            avatarUri = avatarUri,
+                            onAvatarClick = {
+                                permissionLauncher.launch(
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        android.Manifest.permission.READ_MEDIA_IMAGES
                                     } else {
-                                        val avatarFile = avatarUri?.let { uri ->
-                                            uriToFile(uri, context)
-                                        }
-                                        viewModel.updateUserProfile(
-                                            username = username,
-                                            email = null,
-                                            password = null,
-                                            avatarFile = avatarFile
-                                        )
-                                    }
-                                },
-                                isUpdatingProfile = isUpdatingProfile
-                            )
-                            Spacer(modifier = Modifier.height(5.dp))
-                        }
-
-                        item {
-                            Text(
-                                text = "Preferences",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-                            )
-
-                            SettingsCard {
-                                SettingsItem(
-                                    icon = Icons.Default.Person,
-                                    title = "Favorite Categories",
-                                    subtitle = "Manage your news preferences",
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            userRepository.updateFavoriteTopics(mapOf("Tech" to 1, "Sports" to 2))
-                                        }
+                                        android.Manifest.permission.READ_EXTERNAL_STORAGE
                                     }
                                 )
-                                SettingsItem(
-                                    icon = Icons.Default.Refresh,
-                                    title = "Reading History",
-                                    subtitle = "Your recently viewed articles",
-                                    onClick = { /* Handle click */ }
-                                )
-                            }
+                            },
+                            onSave = {
+                                if (username.isBlank()) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Tên người dùng không được để trống")
+                                    }
+                                } else {
+                                    val avatarFile = avatarUri?.let { uri ->
+                                        uriToFile(uri, context)
+                                    }
+                                    viewModel.updateUserProfile(
+                                        username = username,
+                                        email = null,
+                                        password = null,
+                                        avatarFile = avatarFile
+                                    )
+                                }
+                            },
+                            isUpdatingProfile = isUpdatingProfile,
+                            onDeleteClick = { showDeleteDialog = true }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
 
-                            SettingsCard {
-                                SwitchSettingsItem(
-                                    icon = Icons.Outlined.Notifications,
-                                    title = "Notifications",
-                                    checked = notificationsEnabled,
-                                    onCheckedChange = { notificationsEnabled = it },
-                                    showDivider = false
-                                )
-                            }
-                        }
+                item {
+                    Text(
+                        text = "Tùy chọn",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        modifier = Modifier.padding(start = 6.dp, top = 6.dp)
+                    )
 
-                        item {
-                            Text(
-                                text = "Support",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-                            )
+                    SettingsCard {
+                        SettingsItem(
+                            icon = Icons.Outlined.Favorite,
+                            title = "Kho yêu thích của bạn",
+                            subtitle = "Xem các bài viết bạn đã yêu thích",
+                            onClick = { onNavigateToFavoriteScreen() }
+                        )
+                        SettingsItem(
+                            icon = Icons.Default.Refresh,
+                            title = "Lịch sử đọc",
+                            subtitle = "Các bài viết bạn đã xem gần đây",
+                            onClick = { onNavigateToOfflineNews() }
+                        )
+                    }
 
-                            SettingsCard {
-                                SettingsItem(
-                                    icon = Icons.Outlined.Email,
-                                    title = "Contact Us",
-                                    subtitle = "Send feedback or get help",
-                                    onClick = { /* Handle click */ }
-                                )
-                                SettingsItem(
-                                    icon = Icons.Outlined.Info,
-                                    title = "About App",
-                                    subtitle = "Version 1.0.0 • Privacy Policy",
-                                    onClick = { /* Handle click */ },
-                                    showDivider = false
-                                )
-                            }
-                        }
-
-                        item {
-                            SignOutButton(onClick = {
-                                viewModel.signOut()
-                                onSignOut()
-                            })
-                            Spacer(modifier = Modifier.height(24.dp))
-                        }
+                    SettingsCard {
+                        SwitchSettingsItem(
+                            icon = Icons.Outlined.Notifications,
+                            title = "Thông báo",
+                            checked = notificationsEnabled,
+                            onCheckedChange = { notificationsEnabled = it },
+                            showDivider = false
+                        )
                     }
                 }
-                is AccountUiState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Warning,
-                            contentDescription = "Error",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(56.dp)
+
+                item {
+                    Text(
+                        text = "Hỗ trợ",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        modifier = Modifier.padding(start = 6.dp, top = 6.dp)
+                    )
+
+                    SettingsCard {
+                        SettingsItem(
+                            icon = Icons.Outlined.Email,
+                            title = "Liên hệ",
+                            subtitle = "Gửi phản hồi hoặc nhận trợ giúp",
+                            onClick = { /* Handle click */ }
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = (uiState as AccountUiState.Error).message,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
+                        SettingsItem(
+                            icon = Icons.Outlined.Info,
+                            title = "Về ứng dụng",
+                            subtitle = "Phiên bản 1.0.0 • Chính sách bảo mật",
+                            onClick = { /* Handle click */ },
+                            showDivider = false
                         )
                     }
+                }
+
+                item {
+                    SignOutButton(onClick = {
+                        viewModel.signOut()
+                        onSignOut()
+                    })
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -282,17 +342,18 @@ fun ProfileHeader(
     avatarUri: Uri?,
     onAvatarClick: () -> Unit,
     onSave: () -> Unit,
-    isUpdatingProfile: Boolean
+    isUpdatingProfile: Boolean,
+    onDeleteClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(16.dp),
+                elevation = 1.dp,
+                shape = RoundedCornerShape(10.dp),
                 spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
@@ -300,17 +361,18 @@ fun ProfileHeader(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp)
+                .padding(10.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(40.dp)
                         .shadow(
-                            elevation = 4.dp,
+                            elevation = 2.dp,
                             shape = CircleShape,
                             spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                         )
@@ -328,7 +390,7 @@ fun ProfileHeader(
                     if (avatarUri != null) {
                         AsyncImage(
                             model = avatarUri,
-                            contentDescription = "Avatar",
+                            contentDescription = "Ảnh đại diện",
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape),
@@ -339,7 +401,7 @@ fun ProfileHeader(
                         if (user != null) {
                             AsyncImage(
                                 model = user.avatar,
-                                contentDescription = "Avatar",
+                                contentDescription = "Ảnh đại diện",
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .clip(CircleShape),
@@ -349,8 +411,8 @@ fun ProfileHeader(
                         }
                     } else {
                         Text(
-                            text = user?.username?.take(2)?.uppercase() ?: "NA",
-                            style = MaterialTheme.typography.headlineSmall.copy(
+                            text = user?.username?.take(2)?.uppercase() ?: "KH",
+                            style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -360,46 +422,55 @@ fun ProfileHeader(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 10.dp)
                 ) {
                     OutlinedTextField(
                         value = username,
                         onValueChange = onUsernameChange,
-                        label = { Text("Username") },
+                        label = { Text("Tên người dùng") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(8.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        singleLine = true
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodySmall
                     )
                     Text(
-                        text = user?.email ?: "Sign in for full access",
-                        style = MaterialTheme.typography.bodyMedium.copy(
+                        text = user?.email ?: "Đăng nhập để truy cập đầy đủ",
+                        style = MaterialTheme.typography.labelSmall.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Normal
                         ),
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Xóa tài khoản",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Button(
                 onClick = onSave,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp),
+                    .height(32.dp),
+                shape = RoundedCornerShape(8.dp),
                 enabled = !isUpdatingProfile
             ) {
                 if (isUpdatingProfile) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(16.dp),
                         color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
+                        strokeWidth = 1.5.dp
                     )
                 } else {
                     Text(
-                        text = "Save Changes",
-                        style = MaterialTheme.typography.labelLarge.copy(
+                        text = "Lưu thay đổi",
+                        style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.SemiBold
                         )
                     )
@@ -418,10 +489,10 @@ fun SettingsCard(
             .fillMaxWidth()
             .shadow(
                 elevation = 1.dp,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
@@ -447,12 +518,12 @@ fun SettingsItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onClick() }
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
@@ -463,17 +534,17 @@ fun SettingsItem(
                     imageVector = icon,
                     contentDescription = title,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 16.dp)
+                    .padding(start = 12.dp)
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge.copy(
+                    style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = MaterialTheme.colorScheme.onSurface
@@ -481,8 +552,8 @@ fun SettingsItem(
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 13.sp
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 11.sp
                         ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 2.dp)
@@ -493,14 +564,14 @@ fun SettingsItem(
                 imageVector = Icons.Default.ArrowForward,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
         if (showDivider) {
             Divider(
-                modifier = Modifier.padding(start = 72.dp, end = 16.dp),
+                modifier = Modifier.padding(start = 56.dp, end = 12.dp),
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-                thickness = 1.dp
+                thickness = 0.5.dp
             )
         }
     }
@@ -519,12 +590,12 @@ fun SwitchSettingsItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onCheckedChange(!checked) }
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
@@ -535,32 +606,32 @@ fun SwitchSettingsItem(
                     imageVector = icon,
                     contentDescription = title,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(
+                style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 ),
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 16.dp),
+                    .padding(start = 12.dp),
                 color = MaterialTheme.colorScheme.onSurface
             )
             Switch(
                 checked = checked,
                 onCheckedChange = null,
                 modifier = Modifier
-                    .size(width = 48.dp, height = 28.dp)
+                    .size(width = 40.dp, height = 24.dp)
                     .clickable { onCheckedChange(!checked) }
             )
         }
         if (showDivider) {
             Divider(
-                modifier = Modifier.padding(start = 72.dp, end = 16.dp),
+                modifier = Modifier.padding(start = 56.dp, end = 12.dp),
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-                thickness = 1.dp
+                thickness = 0.5.dp
             )
         }
     }
@@ -572,22 +643,23 @@ fun SignOutButton(onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         colors = ButtonDefaults.filledTonalButtonColors(
             containerColor = MaterialTheme.colorScheme.errorContainer,
             contentColor = MaterialTheme.colorScheme.onErrorContainer
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(8.dp),
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         Icon(
             imageVector = Icons.Outlined.ExitToApp,
-            contentDescription = "Sign Out",
-            modifier = Modifier.size(18.dp)
+            contentDescription = "Đăng xuất",
+            modifier = Modifier.size(16.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
-            text = "Sign Out",
-            style = MaterialTheme.typography.labelLarge.copy(
+            text = "Đăng xuất",
+            style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = FontWeight.SemiBold
             )
         )
